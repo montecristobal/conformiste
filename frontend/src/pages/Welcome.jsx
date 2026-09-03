@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ShieldCheck, User, Building2, Check, ArrowRight, FileText } from "lucide-react";
+import { ShieldCheck, File, Files, Check, ArrowRight, FileText, Scale, Layers } from "lucide-react";
 
 const FEATURES = {
   SOLO: [
@@ -22,22 +21,28 @@ const FEATURES = {
 
 function ModeCard({ mode, selected, onSelect }) {
   const isPro = mode === "PRO";
-  const Icon = isPro ? Building2 : User;
+  const Icon = isPro ? Files : File;
+  const accent = isPro
+    ? { ring: "border-[#2563EB] ring-blue-500/10", tint: "bg-blue-50/50", idle: "border-blue-100 hover:border-blue-300", iconBox: "bg-blue-100 text-blue-700", check: "bg-[#2563EB]", bullet: "text-blue-600", tag: "bg-blue-100 text-blue-700" }
+    : { ring: "border-emerald-500 ring-emerald-500/10", tint: "bg-emerald-50/50", idle: "border-emerald-100 hover:border-emerald-300", iconBox: "bg-emerald-100 text-emerald-700", check: "bg-emerald-500", bullet: "text-emerald-600", tag: "bg-emerald-100 text-emerald-700" };
   return (
     <button
       data-testid={`welcome-mode-${mode.toLowerCase()}-button`}
       onClick={() => onSelect(mode)}
-      className={`text-left rounded-2xl border-2 p-6 transition-all duration-300 ${
-        selected
-          ? "border-[#2563EB] bg-white shadow-xl shadow-blue-500/10 scale-[1.01]"
-          : "border-slate-200 bg-white/70 hover:border-slate-300"
+      className={`relative text-left rounded-2xl border-2 p-6 transition-all duration-300 ${
+        selected ? `${accent.ring} ${accent.tint} shadow-xl shadow-slate-500/5 scale-[1.01] ring-4` : `${accent.idle} bg-white/70`
       }`}
     >
       <div className="flex items-center justify-between mb-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${isPro ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`}>
-          <Icon size={24} />
+        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${accent.iconBox}`}>
+          <Icon size={24} strokeWidth={1.8} />
         </div>
-        {selected && <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2563EB] text-white"><Check size={15} /></span>}
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${accent.tag}`}>
+            {isPro ? "Multi-clients" : "Dossier unique"}
+          </span>
+          {selected && <span className={`flex h-6 w-6 items-center justify-center rounded-full text-white ${accent.check}`}><Check size={15} /></span>}
+        </div>
       </div>
       <h3 className="font-display text-2xl font-extrabold text-[#0F2B48]">Version {mode}</h3>
       <p className="text-sm text-slate-500 mt-1 mb-4">
@@ -46,11 +51,69 @@ function ModeCard({ mode, selected, onSelect }) {
       <ul className="space-y-2">
         {FEATURES[mode].map((f) => (
           <li key={f} className="flex items-start gap-2 text-sm text-slate-600">
-            <Check size={16} className={`mt-0.5 shrink-0 ${isPro ? "text-blue-600" : "text-emerald-600"}`} /> {f}
+            <Check size={16} className={`mt-0.5 shrink-0 ${accent.bullet}`} /> {f}
           </li>
         ))}
       </ul>
     </button>
+  );
+}
+
+function DashboardPreview() {
+  const rows = [
+    { nom: "Boulangerie Lévesque inc.", neq: "1170928456", emp: 62, jours: 4, urg: "critical", statut: "en_cours" },
+    { nom: "Groupe Techno-Nord", neq: "1149550031", emp: 148, jours: 21, urg: "approaching", statut: "soumis" },
+    { nom: "Ateliers Rivière-du-Loup", neq: "1163009284", emp: 37, jours: 63, urg: "normal", statut: "accepte" },
+  ];
+  const urgCls = { critical: "bg-red-100 text-red-700 border-red-200", approaching: "bg-amber-100 text-amber-800 border-amber-200", normal: "bg-slate-100 text-slate-500 border-slate-200" };
+  const dot = { en_cours: "bg-blue-500", soumis: "bg-amber-500", accepte: "bg-green-500" };
+  const statutLabel = { en_cours: "En cours", soumis: "Soumis à l'OQLF", accepte: "Accepté" };
+  return (
+    <div className="relative">
+      <div className="absolute -inset-4 bg-gradient-to-tr from-blue-100/40 to-transparent rounded-[28px] blur-2xl" aria-hidden />
+      <div className="relative rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden" data-testid="welcome-dashboard-preview">
+        <div className="h-10 bg-[#0F2B48] flex items-center gap-2 px-4">
+          <ShieldCheck size={15} className="text-blue-300" />
+          <span className="text-white text-xs font-display font-bold tracking-tight">CONFORMISTE</span>
+          <span className="ml-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500 text-white">PRO</span>
+          <div className="ml-auto flex gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-white/25" />
+            <span className="h-2 w-2 rounded-full bg-white/25" />
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-[13px] font-display font-bold text-[#0F2B48]">Tableau de bord</div>
+              <div className="text-[10px] text-slate-400">Trié par échéance légale la plus proche</div>
+            </div>
+            <div className="text-[10px] px-2 py-1 rounded-lg bg-[#0F2B48] text-white font-medium">+ Dossier</div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {[["3", "Dossiers"], ["4 j", "Échéance"], ["3", "Clients"]].map(([v, l]) => (
+              <div key={l} className="rounded-lg bg-slate-50 border border-slate-100 px-2 py-1.5">
+                <div className="text-sm font-bold text-[#0F2B48]">{v}</div>
+                <div className="text-[9px] text-slate-400">{l}</div>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            {rows.map((r) => (
+              <div key={r.neq} className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white px-2.5 py-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${dot[r.statut]}`} />
+                    <span className="text-[11px] font-semibold text-slate-700 truncate">{r.nom}</span>
+                  </div>
+                  <div className="text-[9px] text-slate-400 font-mono mt-0.5">NEQ {r.neq} · {r.emp} empl. · {statutLabel[r.statut]}</div>
+                </div>
+                <span className={`shrink-0 text-[9px] font-medium px-2 py-1 rounded-md border ${urgCls[r.urg]}`}>{r.jours} j</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -62,7 +125,7 @@ export default function Welcome() {
   if (user) return <Navigate to="/dashboard" replace />;
 
   return (
-    <div className="min-h-screen paper-bg">
+    <div className="min-h-screen form-grid-bg">
       <header className="max-w-[1200px] mx-auto px-5 py-5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldCheck className="text-[#2563EB]" size={24} />
@@ -73,21 +136,35 @@ export default function Welcome() {
         </Button>
       </header>
 
-      <div className="max-w-[1200px] mx-auto px-5 pt-6 pb-20">
-        <div className="max-w-3xl animate-fade-up">
-          <span className="inline-flex items-center gap-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 mb-5">
-            <FileText size={13} /> Charte de la langue française du Québec
-          </span>
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#0F2B48] leading-[1.05]">
-            Gestion des obligations linguistiques
-          </h1>
-          <p className="mt-5 text-lg text-slate-600 max-w-2xl">
-            CONFORMISTE est un gestionnaire de projet linguistique qui vous accompagne de
-            l'inscription à la certification et plus encore.
-          </p>
+      <div className="max-w-[1200px] mx-auto px-5 pt-6 pb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+          <div className="animate-fade-up">
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+              <span className="inline-flex items-center gap-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
+                <Scale size={13} /> Charte de la langue française du Québec
+              </span>
+              <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full px-3 py-1">
+                <Layers size={13} className="text-slate-400" /> 8 étapes · 2 modules officiels
+              </span>
+            </div>
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.4rem] font-extrabold tracking-tight text-[#0F2B48] leading-[1.05]">
+              Gestion des obligations linguistiques
+            </h1>
+            <p className="mt-5 text-lg text-slate-600 max-w-xl">
+              CONFORMISTE est un gestionnaire de projet linguistique qui vous accompagne de
+              l'inscription à la certification et plus encore.
+            </p>
+            <div className="mt-6 flex items-center gap-6 text-sm text-slate-500">
+              <span className="flex items-center gap-2"><FileText size={16} className="text-slate-400" /> Analyse & programme de francisation</span>
+            </div>
+          </div>
+
+          <div className="hidden lg:block animate-fade-up" style={{ animationDelay: "0.12s" }}>
+            <DashboardPreview />
+          </div>
         </div>
 
-        <div className="mt-12">
+        <div className="mt-14">
           <h2 className="font-display text-lg font-bold text-slate-700 mb-4">Choisissez votre version</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <ModeCard mode="SOLO" selected={mode === "SOLO"} onSelect={setMode} />
