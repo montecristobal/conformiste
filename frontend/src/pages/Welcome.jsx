@@ -138,7 +138,7 @@ export default function Welcome() {
     <div className="relative min-h-screen form-grid-bg overflow-hidden">
       <div className="pointer-events-none absolute inset-0 select-none" aria-hidden data-testid="montreal-watermark">
         <img
-          src="https://images.unsplash.com/photo-1597463439561-56c1bc962dee?crop=entropy&cs=srgb&fm=jpg&q=85&w=2000"
+          src="https://customer-assets-agu9un31.emergentagent.net/job_conformiste-core/artifacts/ngwf9ozc_IMG_3852.webp"
           alt=""
           className="absolute bottom-0 left-0 w-full h-[62%] object-cover opacity-[0.10]"
         />
