@@ -2,7 +2,17 @@ import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, File, Files, Check, ArrowRight, FileText, Scale, Layers } from "lucide-react";
+import { ShieldCheck, File, Files, Check, ArrowRight, FileText, Scale, Layers,
+  AlarmClock, FileDown, BookText, Lock, History, ListChecks } from "lucide-react";
+
+const FEATURES_GRID = [
+  { testId: "echeances", icon: AlarmClock, titre: "Échéances calculées", desc: "Dates limites légales calculées automatiquement, avec repères d'urgence." },
+  { testId: "export-pdf", icon: FileDown, titre: "Export PDF fidèle", desc: "Documents reproduisant les formulaires officiels, prêts à transmettre à l'OQLF." },
+  { testId: "catalogue", icon: BookText, titre: "Catalogue légal", desc: "Thèmes fondés sur le texte de loi, sans interprétation de l'Office." },
+  { testId: "cloisonnement", icon: Lock, titre: "Cloisonnement des dossiers", desc: "Chaque dossier client est isolé — essentiel en mode PRO." },
+  { testId: "journal", icon: History, titre: "Journal d'audit horodaté", desc: "Chaque action est consignée et horodatée, avec empreinte de vérification." },
+  { testId: "pipeline", icon: ListChecks, titre: "Pipeline en 8 étapes", desc: "De l'inscription au maintien, suivez chaque étape et son statut." },
+];
 
 const FEATURES = {
   SOLO: [
@@ -154,8 +164,10 @@ export default function Welcome() {
               CONFORMISTE est un gestionnaire de projet linguistique qui vous accompagne de
               l'inscription à la certification et plus encore.
             </p>
-            <div className="mt-6 flex items-center gap-6 text-sm text-slate-500">
-              <span className="flex items-center gap-2"><FileText size={16} className="text-slate-400" /> Analyse & programme de francisation</span>
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
+              <span className="flex items-center gap-2" data-testid="trust-badge-legal"><Scale size={16} className="text-blue-500" /> Conforme à la Charte de la langue française</span>
+              <span className="flex items-center gap-2" data-testid="trust-badge-sections"><ListChecks size={16} className="text-blue-500" /> 13 sections officielles numérisées</span>
+              <span className="flex items-center gap-2" data-testid="trust-badge-security"><Lock size={16} className="text-blue-500" /> Dossiers cloisonnés & sécurisés</span>
             </div>
           </div>
 
@@ -167,9 +179,20 @@ export default function Welcome() {
         <div className="mt-14">
           <h2 className="font-display text-lg font-bold text-slate-700 mb-4">Choisissez votre version</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <ModeCard mode="SOLO" selected={mode === "SOLO"} onSelect={setMode} />
-            <ModeCard mode="PRO" selected={mode === "PRO"} onSelect={setMode} />
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Gérez-vous votre propre dossier de francisation ?
+              </p>
+              <ModeCard mode="SOLO" selected={mode === "SOLO"} onSelect={setMode} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" /> Accompagnez-vous plusieurs entreprises clientes ?
+              </p>
+              <ModeCard mode="PRO" selected={mode === "PRO"} onSelect={setMode} />
+            </div>
           </div>
+
           <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
             <Button size="lg" data-testid="welcome-continue-button"
               onClick={() => navigate("/register", { state: { account_type: mode } })}
@@ -182,6 +205,21 @@ export default function Welcome() {
                 Connectez-vous
               </button>
             </span>
+          </div>
+        </div>
+
+        <div className="mt-16" data-testid="features-grid">
+          <h2 className="font-display text-lg font-bold text-slate-700 mb-5">Ce que fait CONFORMISTE</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {FEATURES_GRID.map((f) => (
+              <div key={f.titre} className="rounded-xl border border-slate-200 bg-white/80 p-5 transition-colors hover:border-blue-300" data-testid={`feature-${f.testId}`}>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700 mb-3">
+                  <f.icon size={20} strokeWidth={1.8} />
+                </div>
+                <h3 className="font-display font-bold text-[#0F2B48] text-[15px]">{f.titre}</h3>
+                <p className="text-sm text-slate-500 mt-1 leading-snug">{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
