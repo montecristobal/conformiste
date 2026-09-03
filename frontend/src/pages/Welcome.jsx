@@ -6,7 +6,7 @@ import { ShieldCheck, File, Files, Check, ArrowRight, FileText, Scale, Layers,
   AlarmClock, FileDown, BookText, Lock, History, ListChecks } from "lucide-react";
 
 const FEATURES_GRID = [
-  { testId: "echeances", icon: AlarmClock, titre: "Échéances calculées", desc: "Dates limites légales calculées automatiquement, avec repères d'urgence." },
+  { testId: "prefill", icon: FileText, titre: "Pré-remplissage guidé", desc: "Récupère les données existantes sur votre entreprise et les complète par une entrevue personnalisée." },
   { testId: "export-pdf", icon: FileDown, titre: "Export PDF fidèle", desc: "Documents reproduisant les formulaires officiels, prêts à transmettre à l'OQLF." },
   { testId: "catalogue", icon: BookText, titre: "Catalogue légal", desc: "Thèmes fondés sur le texte de loi, sans interprétation de l'Office." },
   { testId: "cloisonnement", icon: Lock, titre: "Cloisonnement des dossiers", desc: "Chaque dossier client est isolé — essentiel en mode PRO." },
@@ -159,8 +159,8 @@ export default function Welcome() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           <div className="animate-fade-up">
             <div className="flex flex-wrap items-center gap-2 mb-5">
-              <span className="inline-flex items-center gap-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
-                <Scale size={13} /> Charte de la langue française du Québec
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-4 py-1.5 shadow-sm">
+                <Scale size={16} /> Charte de la langue française du Québec
               </span>
               <span className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-full px-3 py-1">
                 <Layers size={13} className="text-slate-400" /> 8 étapes · 2 modules officiels
@@ -170,12 +170,12 @@ export default function Welcome() {
               Gestion des obligations linguistiques
             </h1>
             <p className="mt-5 text-lg text-slate-600 max-w-xl">
-              CONFORMISTE est un gestionnaire de projet linguistique qui vous accompagne de
-              l'inscription à la certification et plus encore.
+              CONFORMISTE est un gestionnaire de projet linguistique qui automatise le processus
+              de conformité à la Charte, de l'inscription à la certification et plus encore.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
-              <span className="flex items-center gap-2" data-testid="trust-badge-legal"><Scale size={16} className="text-blue-500" /> Conforme à la Charte de la langue française</span>
-              <span className="flex items-center gap-2" data-testid="trust-badge-sections"><ListChecks size={16} className="text-blue-500" /> 13 sections officielles numérisées</span>
+              <span className="flex items-center gap-2" data-testid="trust-badge-legal"><Scale size={16} className="text-blue-500" /> Simplifie la conformité à la loi</span>
+              <span className="flex items-center gap-2" data-testid="trust-badge-sections"><ListChecks size={16} className="text-blue-500" /> Conseils et outils pour optimiser le processus</span>
               <span className="flex items-center gap-2" data-testid="trust-badge-security"><Lock size={16} className="text-blue-500" /> Dossiers cloisonnés & sécurisés</span>
             </div>
           </div>
@@ -190,13 +190,13 @@ export default function Welcome() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Gérez-vous votre propre dossier de francisation ?
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Gérer vous-même votre dossier
               </p>
               <ModeCard mode="SOLO" selected={mode === "SOLO"} onSelect={setMode} />
             </div>
             <div>
               <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" /> Accompagnez-vous plusieurs entreprises clientes ?
+                <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" /> Un outil de suivi et de gestion pour les consultants
               </p>
               <ModeCard mode="PRO" selected={mode === "PRO"} onSelect={setMode} />
             </div>
