@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend-only retest of the Montreal skyline watermark fix on the public Welcome page ('/'). Verified DOM presence, image src, network 200, computed opacity, rendered dimensions, non-blocking layering, and non-regression of foreground content (title, mode cards, Continuer navigation). All checks passed with zero console errors and zero failed network requests.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Welcome.jsx watermark uses `fixed inset-0` inside a parent with `overflow-hidden`; this renders correctly in Chromium but a `position: absolute` container (or moving the fixed layer outside the overflow-hidden wrapper) would be more spec-safe across engines. Non-blocking observation only.",
+    "The watermark <img> has no width/height or loading attributes; the 305 KB webp is fetched on first paint of the public landing page. Consider loading=\"lazy\"/decoding=\"async\" or a smaller variant for LCP on slow connections."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "Not required — '/' is public",
+  "context_for_next_testing_agent": "Iteration 2 covered ONLY the Welcome page watermark fix. Measured values on 1920x1080: watermark div (data-testid='montreal-watermark') z-index 0, pointer-events none; <img src=.../ngwf9ozc_IMG_3852.webp> naturalSize 2000x1500, HTTP 200 image/webp, computed opacity 0.4, rendered 1920x594 occupying the viewport lower half (top=486, bottom=1080). elementFromPoint at (50%,80%) returned foreground content DIV, confirming the watermark does not intercept clicks. Mode cards toggle the Continuer label (SOLO/PRO) and Continuer navigates to /register. Auth/dossiers/modules/PDF were validated in iteration_1 and were not re-tested.",
+  "rca_of_the_issue": "Original 'Je ne vois rien' bug was caused by an over-attenuated watermark whose subject fell below the fold. Current implementation (h-[55%], object-bottom, opacity-40 with a white top gradient) makes the skyline clearly visible in the lower half of the viewport at both scroll-top and scroll-bottom positions — confirmed visually via screenshots. Fix is effective."
+}

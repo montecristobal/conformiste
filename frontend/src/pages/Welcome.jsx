@@ -136,13 +136,13 @@ export default function Welcome() {
 
   return (
     <div className="relative min-h-screen form-grid-bg overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 select-none" aria-hidden data-testid="montreal-watermark">
+      <div className="pointer-events-none fixed inset-0 z-0 select-none" aria-hidden data-testid="montreal-watermark">
         <img
           src="https://customer-assets-agu9un31.emergentagent.net/job_conformiste-core/artifacts/ngwf9ozc_IMG_3852.webp"
           alt=""
-          className="absolute bottom-0 left-0 w-full h-[62%] object-cover opacity-[0.10]"
+          className="absolute bottom-0 left-0 w-full h-[55%] object-cover object-bottom opacity-40"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#F6F8FB] via-[#F6F8FB]/70 to-[#F6F8FB]/85" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#F6F8FB] via-[#F6F8FB]/60 to-transparent" />
       </div>
       <div className="relative z-10">
       <header className="max-w-[1200px] mx-auto px-5 py-5 flex items-center justify-between">
