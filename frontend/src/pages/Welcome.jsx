@@ -3,16 +3,27 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, File, Files, Check, ArrowRight, FileText, Scale, Layers,
-  AlarmClock, FileDown, BookText, Lock, History, ListChecks } from "lucide-react";
+  FileDown, Lock, History, ListChecks, Camera, ScanLine, Globe, ClipboardList,
+  Wand2, Users, CalendarClock } from "lucide-react";
 
-const FEATURES_GRID = [
-  { testId: "prefill", icon: FileText, titre: "Pré-remplissage guidé", desc: "Récupère les données existantes sur votre entreprise et les complète par une entrevue personnalisée." },
-  { testId: "export-pdf", icon: FileDown, titre: "Export PDF fidèle", desc: "Documents reproduisant les formulaires officiels, prêts à transmettre à l'OQLF." },
-  { testId: "catalogue", icon: BookText, titre: "Catalogue légal", desc: "Thèmes fondés sur le texte de loi, sans interprétation de l'Office." },
-  { testId: "cloisonnement", icon: Lock, titre: "Cloisonnement des dossiers", desc: "Chaque dossier client est isolé — essentiel en mode PRO." },
-  { testId: "journal", icon: History, titre: "Journal d'audit horodaté", desc: "Chaque action est consignée et horodatée, avec empreinte de vérification." },
-  { testId: "pipeline", icon: ListChecks, titre: "Pipeline en 8 étapes", desc: "De l'inscription au maintien, suivez chaque étape et son statut." },
-];
+const FEATURES_BY_MODE = {
+  SOLO: [
+    { testId: "solo-prefill", icon: FileText, titre: "Pré-remplissage & entrevue guidée", desc: "Récupère les données de votre entreprise au REQ et les complète par une entrevue avec le responsable du dossier, puis produit et achemine les formulaires à l'Office." },
+    { testId: "solo-doc-analyse", icon: ScanLine, titre: "Analyse de vos documents", desc: "Présentez une photo ou une copie numérisée d'un document : le logiciel l'analyse et explique, au besoin, ce qui n'est pas conforme." },
+    { testId: "solo-affichage", icon: Camera, titre: "Affichage & publicité", desc: "Photographiez votre affichage public et votre publicité avec votre téléphone : l'analyse relève automatiquement les éléments non conformes." },
+    { testId: "solo-web", icon: Globe, titre: "Analyse de votre site web", desc: "Fournissez une URL : CONFORMISTE produit la liste de tous les éléments non conformes." },
+    { testId: "solo-plan", icon: ClipboardList, titre: "Plan de correction", desc: "Toutes les non-conformités regroupées avec un choix de mesures, un calendrier, les coûts approximatifs et les ressources disponibles." },
+    { testId: "solo-programme", icon: Wand2, titre: "Programme rempli automatiquement", desc: "Dès réception du gabarit de l'OQLF, le formulaire du programme est rempli automatiquement avec les mesures et leur échéancier." },
+  ],
+  PRO: [
+    { testId: "pro-portefeuille", icon: Users, titre: "Portefeuille multi-clients", desc: "Gérez tous vos dossiers clients en parallèle depuis un seul espace de travail." },
+    { testId: "pro-cloisonnement", icon: Lock, titre: "Cloisonnement des dossiers", desc: "Chaque dossier client est isolé et sécurisé — les données ne se croisent jamais." },
+    { testId: "pro-echeances", icon: CalendarClock, titre: "Échéances du portefeuille", desc: "Vue d'ensemble des échéances légales de tous vos clients, triées par urgence." },
+    { testId: "pro-export", icon: FileDown, titre: "Export PDF fidèle", desc: "Documents reproduisant les formulaires officiels, prêts à transmettre à l'OQLF pour chaque client." },
+    { testId: "pro-journal", icon: History, titre: "Journal d'audit horodaté", desc: "Chaque action est consignée et horodatée, avec empreinte de vérification, pour chaque dossier." },
+    { testId: "pro-pipeline", icon: ListChecks, titre: "Pipeline en 8 étapes", desc: "De l'inscription au maintien, suivez chaque étape et son statut pour chacun de vos clients." },
+  ],
+};
 
 const FEATURES = {
   SOLO: [
@@ -218,11 +229,16 @@ export default function Welcome() {
         </div>
 
         <div className="mt-16" data-testid="features-grid">
-          <h2 className="font-display text-lg font-bold text-slate-700 mb-5">Ce que fait CONFORMISTE</h2>
+          <div className="flex items-center gap-3 mb-5">
+            <h2 className="font-display text-lg font-bold text-slate-700">Ce que fait CONFORMISTE</h2>
+            <span className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full ${mode === "PRO" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"}`} data-testid="features-mode-tag">
+              Version {mode}
+            </span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FEATURES_GRID.map((f) => (
-              <div key={f.titre} className="rounded-xl border border-slate-200 bg-white/80 p-5 transition-colors hover:border-blue-300" data-testid={`feature-${f.testId}`}>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700 mb-3">
+            {FEATURES_BY_MODE[mode].map((f) => (
+              <div key={f.titre} className="rounded-xl border border-slate-200 bg-white/80 p-5 transition-colors hover:border-blue-300 animate-fade-up" data-testid={`feature-${f.testId}`}>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg mb-3 ${mode === "PRO" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"}`}>
                   <f.icon size={20} strokeWidth={1.8} />
                 </div>
                 <h3 className="font-display font-bold text-[#0F2B48] text-[15px]">{f.titre}</h3>
