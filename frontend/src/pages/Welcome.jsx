@@ -80,23 +80,32 @@ function ModeCard({ mode, selected, onSelect }) {
   );
 }
 
-function DashboardPreview() {
+function DashboardPreview({ mode = "SOLO" }) {
+  const isPro = mode === "PRO";
   const rows = [
     { nom: "Boulangerie Lévesque inc.", neq: "1170928456", emp: 62, jours: 4, urg: "critical", statut: "en_cours" },
     { nom: "Groupe Techno-Nord", neq: "1149550031", emp: 148, jours: 21, urg: "approaching", statut: "soumis" },
     { nom: "Ateliers Rivière-du-Loup", neq: "1163009284", emp: 37, jours: 63, urg: "normal", statut: "accepte" },
   ];
+  const soloSteps = [
+    { label: "Inscription de l'entreprise", statut: "accepte" },
+    { label: "Analyse de la situation linguistique", statut: "en_cours" },
+    { label: "Programme de francisation", statut: "a_faire" },
+    { label: "Mise en œuvre & certificat", statut: "a_faire" },
+  ];
   const urgCls = { critical: "bg-red-100 text-red-700 border-red-200", approaching: "bg-amber-100 text-amber-800 border-amber-200", normal: "bg-slate-100 text-slate-500 border-slate-200" };
-  const dot = { en_cours: "bg-blue-500", soumis: "bg-amber-500", accepte: "bg-green-500" };
-  const statutLabel = { en_cours: "En cours", soumis: "Soumis à l'OQLF", accepte: "Accepté" };
+  const dot = { en_cours: "bg-blue-500", soumis: "bg-amber-500", accepte: "bg-green-500", a_faire: "bg-slate-300" };
+  const statutLabel = { en_cours: "En cours", soumis: "Soumis à l'OQLF", accepte: "Accepté", a_faire: "À faire" };
+  const soloStats = [["1", "Dossier"], ["4 j", "Échéance"], ["2/8", "Étapes"]];
+  const proStats = [["3", "Dossiers"], ["4 j", "Échéance"], ["3", "Clients"]];
   return (
     <div className="relative">
-      <div className="absolute -inset-4 bg-gradient-to-tr from-blue-100/40 to-transparent rounded-[28px] blur-2xl" aria-hidden />
-      <div className="relative rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden" data-testid="welcome-dashboard-preview">
+      <div className={`absolute -inset-4 rounded-[28px] blur-2xl ${isPro ? "bg-gradient-to-tr from-blue-100/40" : "bg-gradient-to-tr from-emerald-100/40"} to-transparent`} aria-hidden />
+      <div className="relative rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden" data-testid="welcome-dashboard-preview" data-mode={mode}>
         <div className="h-10 bg-[#0F2B48] flex items-center gap-2 px-4">
           <ShieldCheck size={15} className="text-blue-300" />
           <span className="text-white text-xs font-display font-bold tracking-tight">CONFORMISTE</span>
-          <span className="ml-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500 text-white">PRO</span>
+          <span className={`ml-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white ${isPro ? "bg-blue-500" : "bg-emerald-500"}`} data-testid="preview-mode-badge">{mode}</span>
           <div className="ml-auto flex gap-1.5">
             <span className="h-2 w-2 rounded-full bg-white/25" />
             <span className="h-2 w-2 rounded-full bg-white/25" />
@@ -106,32 +115,53 @@ function DashboardPreview() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <div className="text-[13px] font-display font-bold text-[#0F2B48]">Tableau de bord</div>
-              <div className="text-[10px] text-slate-400">Trié par échéance légale la plus proche</div>
+              <div className="text-[10px] text-slate-400">{isPro ? "Trié par échéance légale la plus proche" : "Votre dossier, guidé étape par étape"}</div>
             </div>
-            <div className="text-[10px] px-2 py-1 rounded-lg bg-[#0F2B48] text-white font-medium">+ Dossier</div>
+            <div className="text-[10px] px-2 py-1 rounded-lg bg-[#0F2B48] text-white font-medium">{isPro ? "+ Dossier" : "Mon dossier"}</div>
           </div>
           <div className="grid grid-cols-3 gap-2 mb-3">
-            {[["3", "Dossiers"], ["4 j", "Échéance"], ["3", "Clients"]].map(([v, l]) => (
+            {(isPro ? proStats : soloStats).map(([v, l]) => (
               <div key={l} className="rounded-lg bg-slate-50 border border-slate-100 px-2 py-1.5">
                 <div className="text-sm font-bold text-[#0F2B48]">{v}</div>
                 <div className="text-[9px] text-slate-400">{l}</div>
               </div>
             ))}
           </div>
-          <div className="space-y-2">
-            {rows.map((r) => (
-              <div key={r.neq} className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white px-2.5 py-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`h-1.5 w-1.5 rounded-full ${dot[r.statut]}`} />
-                    <span className="text-[11px] font-semibold text-slate-700 truncate">{r.nom}</span>
+          {isPro ? (
+            <div className="space-y-2">
+              {rows.map((r) => (
+                <div key={r.neq} className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white px-2.5 py-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${dot[r.statut]}`} />
+                      <span className="text-[11px] font-semibold text-slate-700 truncate">{r.nom}</span>
+                    </div>
+                    <div className="text-[9px] text-slate-400 font-mono mt-0.5">NEQ {r.neq} · {r.emp} empl. · {statutLabel[r.statut]}</div>
                   </div>
-                  <div className="text-[9px] text-slate-400 font-mono mt-0.5">NEQ {r.neq} · {r.emp} empl. · {statutLabel[r.statut]}</div>
+                  <span className={`shrink-0 text-[9px] font-medium px-2 py-1 rounded-md border ${urgCls[r.urg]}`}>{r.jours} j</span>
                 </div>
-                <span className={`shrink-0 text-[9px] font-medium px-2 py-1 rounded-md border ${urgCls[r.urg]}`}>{r.jours} j</span>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-slate-100 bg-white px-3 py-2.5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-[11px] font-semibold text-slate-700 truncate">Boulangerie Lévesque inc.</span>
+                </div>
+                <span className={`shrink-0 text-[9px] font-medium px-2 py-1 rounded-md border ${urgCls.critical}`}>Analyse · 4 j</span>
               </div>
-            ))}
-          </div>
+              <div className="space-y-1.5">
+                {soloSteps.map((s, i) => (
+                  <div key={s.label} className="flex items-center gap-2">
+                    <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold ${s.statut === "accepte" ? "bg-green-500 text-white" : s.statut === "en_cours" ? "bg-blue-500 text-white" : "bg-slate-200 text-slate-500"}`}>{i + 1}</span>
+                    <span className={`text-[10px] ${s.statut === "a_faire" ? "text-slate-400" : "text-slate-700 font-medium"}`}>{s.label}</span>
+                    <span className={`ml-auto h-1.5 w-1.5 rounded-full ${dot[s.statut]}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -192,7 +222,7 @@ export default function Welcome() {
           </div>
 
           <div className="hidden lg:block animate-fade-up" style={{ animationDelay: "0.12s" }}>
-            <DashboardPreview />
+            <DashboardPreview mode={mode} />
           </div>
         </div>
 
