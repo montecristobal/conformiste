@@ -135,7 +135,16 @@ export default function Welcome() {
   if (user) return <Navigate to="/dashboard" replace />;
 
   return (
-    <div className="min-h-screen form-grid-bg">
+    <div className="relative min-h-screen form-grid-bg overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 select-none" aria-hidden data-testid="montreal-watermark">
+        <img
+          src="https://images.unsplash.com/photo-1597463439561-56c1bc962dee?crop=entropy&cs=srgb&fm=jpg&q=85&w=2000"
+          alt=""
+          className="absolute bottom-0 left-0 w-full h-[62%] object-cover opacity-[0.10]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#F6F8FB] via-[#F6F8FB]/70 to-[#F6F8FB]/85" />
+      </div>
+      <div className="relative z-10">
       <header className="max-w-[1200px] mx-auto px-5 py-5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldCheck className="text-[#2563EB]" size={24} />
@@ -223,6 +232,7 @@ export default function Welcome() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
