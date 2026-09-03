@@ -76,15 +76,14 @@ export default function Welcome() {
       <div className="max-w-[1200px] mx-auto px-5 pt-6 pb-20">
         <div className="max-w-3xl animate-fade-up">
           <span className="inline-flex items-center gap-2 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-3 py-1 mb-5">
-            <FileText size={13} /> Charte de la langue française du Québec — Loi 96
+            <FileText size={13} /> Charte de la langue française du Québec
           </span>
           <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#0F2B48] leading-[1.05]">
-            La conformité en francisation,<br />gérée comme une déclaration.
+            Gestion des obligations linguistiques
           </h1>
           <p className="mt-5 text-lg text-slate-600 max-w-2xl">
-            CONFORMISTE numérise vos dossiers de francisation OQLF — de l'analyse de la situation
-            linguistique au programme de francisation — avec échéances légales, journal d'audit et
-            exports PDF prêts à transmettre.
+            CONFORMISTE est un gestionnaire de projet linguistique qui vous accompagne de
+            l'inscription à la certification et plus encore.
           </p>
         </div>
 
