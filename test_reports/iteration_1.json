@@ -1,0 +1,58 @@
+{
+  "summary": "Première passe complète (backend + frontend) de CONFORMISTE. Backend: 33 tests pytest créés (auth JWT, catalogue, clients, dossiers CRUD/échéances/urgence/tri/cloisonnement, module1/module2, pipeline+échanges, journal d'audit, exports PDF) → 32 PASS / 1 FAIL (seul échec: absence de verrouillage anti-force brute exigé par le playbook auth). Frontend: flux PRO complet (login admin, création client, création dossier rattaché, filtre client, pipeline 8 étapes, statut/date/note/échange + persistance après reload, Module 1 logique conditionnelle Annexes I/II + sous-questions + persistance, Module 2 catalogue 5A/9B + ajout/suppression de mesures + persistance, exports PDF via nouvel onglet (200 application/pdf), journal d'audit avec 9 entrées horodatées) et flux SOLO (register SOLO préselectionné, onglet Clients absent, /clients redirige vers dashboard, création dossier sans client, échéance +3 mois, logout + route protégée, erreur de connexion en français). Tous ces flux passent.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/login", "issue": "Aucun verrouillage / rate-limit après échecs répétés: 6 tentatives erronées consécutives renvoient toutes 401 (playbook auth exige un lockout/429 après 5 échecs). Test: TestAuth::test_brute_force_lockout"},
+      {"endpoint": "CORS middleware (server.py:429)", "issue": "allow_origins=['*'] combiné à allow_credentials=True: les navigateurs rejettent les requêtes créditées avec wildcard. Fonctionne aujourd'hui uniquement parce que front et API partagent l'origine via l'ingress. Mettre CORS_ORIGINS sur des origines explicites (FRONTEND_URL)."},
+      {"endpoint": "startup", "issue": "seed_admin ne met à jour QUE le password_hash si le mot de passe change; ADMIN_NAME/ADMIN_ACCOUNT_TYPE/role ne sont jamais resynchronisés pour un admin existant (idempotence partielle)."},
+      {"endpoint": "PATCH /api/dossiers/{id}/stage/{key}", "issue": "statut et date_limite ne sont pas validés (Enum/date): n'importe quelle chaîne est acceptée et stockée (ex: statut='xyz'), ce qui casse les badges front."},
+      {"endpoint": "/api/clients", "issue": "Aucune route PUT/DELETE client ni GET /clients/{id}: impossible de corriger ou supprimer un client; idem aucune suppression de dossier (DELETE /api/dossiers/{id} inexistant)."},
+      {"endpoint": "GET /api/dossiers/{id}/audit", "issue": "Le champ details contient la valeur brute du statut (« en_cours ») au lieu du libellé français, visible tel quel dans l'onglet Journal."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Welcome.jsx", "issue": "navigate('/dashboard') est appelé pendant le rendu (`if (user) { navigate(...); return null; }`) — anti-pattern React (mise à jour d'état pendant le rendu); à déplacer dans un useEffect ou utiliser <Navigate replace />.", "selector": "/", "priority": "LOW"},
+      {"component": "DossierDetail / Dashboard / Module2 (champs date)", "issue": "Tous les champs de date utilisent le sélecteur natif du navigateur (<input type=\"date\">) affiché au format anglais mm/dd/yyyy dans une application entièrement francophone; utiliser le composant Calendar/Popover shadcn ou un format fr-CA.", "selector": "[data-testid$=\"-date-input\"], [data-testid=\"dossier-attestation-input\"]", "priority": "MEDIUM"},
+      {"component": "lib/api.js", "issue": "Aucun intercepteur de réponse 401: à l'expiration du JWT (7 j) l'utilisateur reste 'connecté' côté UI avec des appels en échec silencieux (les .catch() vides masquent l'erreur, ex: AuditLog et DossierDetail).", "selector": "-", "priority": "MEDIUM"},
+      {"component": "Module1Form / DossierDetail (en-tête)", "issue": "Les champs s4.employes_quebec / s4.etablissements du Module 1 ne resynchronisent pas nb_employes_quebec / nb_etablissements du dossier: après passage à 120 employés / 2 établissements dans le Module 1, l'en-tête et le bandeau 'comité requis' continuent d'afficher 150 employés / 3 établissements (incohérence de données visible à l'utilisateur).", "selector": "[data-testid=\"m1-s4-employes_quebec\"]", "priority": "MEDIUM"},
+      {"component": "Dialog (shadcn) — Dashboard/Clients", "issue": "Avertissements console répétés: 'Missing Description or aria-describedby for DialogContent' (accessibilité).", "selector": "[data-testid=\"create-dossier-button\"]", "priority": "LOW"},
+      {"component": "Dashboard — badge d'échéance", "issue": "Une échéance dépassée s'affiche « · -2 j » (nombre négatif) au lieu d'un libellé explicite type « en retard de 2 jours ».", "selector": "[data-testid$=\"-echeance\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Export PDF (Module 1 / Module 2)", "issue": "L'export ouvre l'URL API dans un nouvel onglet (window.open) sans en-tête Authorization: l'authentification repose uniquement sur le cookie httpOnly. Fonctionne aujourd'hui (même origine, SameSite=None/Secure) mais échouera si le cookie est bloqué/expiré alors que le token localStorage est encore valide. Préférer un téléchargement via axios (blob) avec le Bearer.", "affected_selectors": ["[data-testid=\"export-pdf-module1-button\"]", "[data-testid=\"export-pdf-module2-button\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Détail du dossier — pipeline", "issues": ["Le pipeline à 8 étapes est coupé à droite au viewport 1920 (scroll horizontal requis, l'étape 8 n'est pas visible du tout): aucun indicateur visuel de défilement."]},
+      {"screen": "Module 2 — thèmes", "issues": ["Le texte de loi affiche « [à valider — placeholder] » pour les 14 thèmes (comportement annoncé mais visible en production)."]},
+      {"screen": "Journal d'audit", "issues": ["Détails techniques bruts (« en_cours ») et empreinte affichée sans explication."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Ajouter un verrouillage anti-force brute (429 après 5 échecs de connexion) conformément au playbook auth.",
+    "Remplacer CORS_ORIGINS='*' par des origines explicites puisque allow_credentials=True.",
+    "Valider statut/date_limite (Enum + date) dans PATCH /dossiers/{id}/stage/{key}.",
+    "Synchroniser nb_employes_quebec / nb_etablissements du dossier avec les champs s4 du Module 1 (ou afficher la source de vérité de façon cohérente).",
+    "Faire l'export PDF via axios (blob + Bearer) au lieu de window.open.",
+    "Ajouter un intercepteur 401 (déconnexion + redirection /login) dans lib/api.js.",
+    "Utiliser un sélecteur de date shadcn/format fr-CA au lieu de l'input date natif anglais.",
+    "Prévoir DELETE/PUT clients et DELETE dossier; rendre seed_admin pleinement idempotent (name/account_type/role)."
+  ],
+  "critical_code_review_comments": [
+    "server.py: pas de rate limiting sur /auth/login; combiné à un JWT de 7 jours sans révocation, c'est le principal risque de sécurité.",
+    "server.py: allow_origins=['*'] + allow_credentials=True est une configuration CORS invalide côté navigateur.",
+    "server.py: les collections utilisent ObjectId pour users mais uuid pour dossiers/clients — cohérent en sortie (aucun _id ne fuit, vérifié), mais get_current_user fait ObjectId(payload['sub']) sans garde: un sub non-ObjectId lèverait bson.InvalidId → 500 (à ce jour non déclenchable car token signé).",
+    "server.py: @app.on_event('startup'/'shutdown') est déprécié en FastAPI — migrer vers lifespan.",
+    "DossierDetail.jsx / AuditLog.jsx: .catch(() => {}) silencieux — aucun état d'erreur affiché à l'utilisateur en cas d'échec API."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "97% (32/33)", "frontend": "100% des flux testés (26/26 assertions)"},
+  "seed_data_creation": "Comptes SOLO/PRO jetables test_solo_*/test_*@example.com (mot de passe Test1234!); clients 'TEST Client *' et dossiers 'TEST Dossier UI *', 'TEST Detail *', 'TEST Urgence *', 'TEST SOLO Entreprise' sous le compte admin vild@yuville.com. Non nettoyés (pas d'endpoint DELETE).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO, admin) — valide et fonctionnel; /app/memory/test_credentials.md présent et exact.",
+  "context_for_next_testing_agent": "Suite pytest complète: /app/backend/tests/backend_test.py (33 tests, classes TestAuth/TestCatalogue/TestClientsAndDossiers/TestModulesPipelineAuditExport). Seul test rouge attendu tant que le lockout n'est pas implémenté: TestAuth::test_brute_force_lockout. Dossier de référence déjà rempli (Module 1, Module 2, étape 'comite', 9 entrées d'audit): /dossier/94adcf4a-1940-4707-9d92-c07602732b62 sous le compte admin. Attention: les fichiers de test placés dans /app/backend/tests déclenchent un reload uvicorn (watchfiles). Frontend: sélecteurs kebab-case confirmés (m1-nav-<section>, m1-<section>-<field>, m1-<sec>-<field>-opt-<valeur>, mesure-<uuid>-engagee, module2-add-measure-<theme>, stage-<key>-*, audit-entry-<id>). Non testé: export CSV du journal (audit-log-export-button), champs type 'table' du Module 1 (Annexe II), et cloisonnement PRO→PRO via l'UI (couvert côté API).",
+  "rca_of_the_issue": "Aucun défaut bloquant. Échec unique = fonctionnalité manquante: POST /api/auth/login ne compte pas les échecs par courriel/IP et ne renvoie jamais 429 (reproduction: 6 POST successifs avec un mauvais mot de passe → 401 x6). Mitigation: compteur d'échecs persistant (Mongo) + verrouillage temporisé après 5 échecs."
+}

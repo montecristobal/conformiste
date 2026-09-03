@@ -1,0 +1,162 @@
+{
+  "project_name": "CONFORMISTE",
+  "app_type": "hybrid_fullstack",
+  "archetype": "Swiss & Institutional Legaltech (Quebec Compliance)",
+  "language": "fr-CA",
+  "overview": "SaaS application for French language compliance management in Quebec (Loi 96 / OQLF Charter of the French Language), styled like high-precision tax preparation software with PRO (Multi-client consultant) and SOLO (Single business guided) modes.",
+  "theme": {
+    "default_mode": "light",
+    "support_toggle": true,
+    "philosophy": "Institutional authority meets sleek modern legaltech. Calm, trustworthy, bone-white paper backgrounds, rich deep navy structural elements, and high-visibility status tags for legal deadlines."
+  },
+  "colors": {
+    "primary": {
+      "hex": "#0F2B48",
+      "name": "Bleu Institutionnel Québec",
+      "usage": "Primary headers, dominant structural bars, key buttons, and brand anchors."
+    },
+    "secondary": {
+      "hex": "#2563EB",
+      "name": "Bleu Azur Légal",
+      "usage": "Interactive states, active steps, primary CTA accents, focus rings."
+    },
+    "neutral_bg": {
+      "light": "#F8FAFC",
+      "dark": "#0B1120",
+      "usage": "Application canvas background with subtle grain/paper texture feel."
+    },
+    "surface": {
+      "light": "#FFFFFF",
+      "dark": "#1E293B",
+      "usage": "Form cards, dossier tables, module containers with 1px subtle border."
+    },
+    "text": {
+      "primary_light": "#0F172A",
+      "secondary_light": "#475569",
+      "primary_dark": "#F8FAFC",
+      "secondary_dark": "#94A3B8"
+    },
+    "status_badges": {
+      "a_faire": {
+        "bg": "#F1F5F9",
+        "text": "#475569",
+        "border": "#CBD5E1",
+        "label": "À faire"
+      },
+      "en_cours": {
+        "bg": "#EFF6FF",
+        "text": "#1D4ED8",
+        "border": "#93C5FD",
+        "label": "En cours"
+      },
+      "soumis": {
+        "bg": "#FEF3C7",
+        "text": "#B45309",
+        "border": "#FCD34D",
+        "label": "Soumis à l'OQLF"
+      },
+      "accepte": {
+        "bg": "#DCFCE7",
+        "text": "#15803D",
+        "border": "#86EFAC",
+        "label": "Accepté"
+      },
+      "refuse": {
+        "bg": "#FEE2E2",
+        "text": "#B91C1C",
+        "border": "#FCA5A5",
+        "label": "Refusé / À corriger"
+      }
+    },
+    "deadline_urgency": {
+      "normal": {
+        "text": "#1E293B",
+        "badge": "bg-slate-100 text-slate-800"
+      },
+      "approaching": {
+        "text": "#D97706",
+        "badge": "bg-amber-100 text-amber-900 border-amber-300"
+      },
+      "critical": {
+        "text": "#DC2626",
+        "badge": "bg-red-100 text-red-900 border-red-300 animate-pulse"
+      }
+    }
+  },
+  "typography": {
+    "heading_font": "General Sans, Outfit, -apple-system, sans-serif",
+    "body_font": "Plus Jakarta Sans, Inter, sans-serif",
+    "mono_font": "JetBrains Mono, IBM Plex Mono, monospace",
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100",
+      "h3": "text-xl sm:text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100",
+      "h4": "text-lg font-semibold text-slate-800 dark:text-slate-200",
+      "body": "text-sm sm:text-base leading-relaxed text-slate-700 dark:text-slate-300",
+      "legal_code": "font-mono text-xs uppercase tracking-wider text-slate-500 font-medium"
+    }
+  },
+  "layout_patterns": {
+    "welcome_screen": {
+      "structure": "Split high-impact choice matrix. Left side: SOLO (Single company, step-by-step wizard, pre-filled templates). Right side: PRO (Consultant workspace, multi-client partitioning, global compliance timeline).",
+      "cta_style": "Hero-grade mode selector cards with feature comparisons and instant account setup."
+    },
+    "dashboard": {
+      "grid": "MODE B: High Density Dashboard Grid. Header bar with current client filter (PRO) + stage countdown banner. Main grid with 8-stage visual pipeline, nearest deadline alert card, completion velocity chart, and upcoming OQLF exchanges.",
+      "pipeline_visualization": "8-stage horizontal stepper with interactive node expansion: 1. Inscription -> 2. Communication OQLF -> 3. Analyse Situation (Mod 1) -> 4. Diagnostic -> 5. Programme (Mod 2) -> 6. Déploiement -> 7. Rapport Annuel -> 8. Certificat."
+    },
+    "module_1_forms": {
+      "structure": "Accordion-assisted multi-section tax-style form with 11 standardized sections + Annexes I & II. Sticky sidebar navigation with completion percentage per section and auto-save indicator.",
+      "form_elements": "Explicit labels, conditional sub-questions, inline legal tooltips, repeatable personnel/software tables with add/remove rows."
+    },
+    "module_2_programme": {
+      "structure": "Catalog of fixed legal themes (Level A: Obligations générales, Level B: Directives spécifiques). Repeatable measures table with target deadlines, responsible roles, and official Loi 96 reference badges.",
+      "read_only_references": "Grounded legal callouts with muted parchment/slate tint and lock icon."
+    },
+    "audit_log": {
+      "structure": "Immutable timeline journal displaying timestamp, actor, mode (PRO/SOLO), action (Field update, PDF generated, Document attached, Status change), and cryptographic checksum."
+    }
+  },
+  "components_and_ui": {
+    "toast_library": "sonner",
+    "icon_library": "lucide-react",
+    "modal_style": "Shadcn Dialog customized with deep slate headers and high-contrast action buttons",
+    "data_tables": "Density-optimized with sticky header, search filter, status drop-down filter, and pagination",
+    "pdf_preview": "Integrated print-ready iframe/view with official Quebec government document header bar, seal emblem placeholder, and page-break visual split"
+  },
+  "media_assets": {
+    "images": [
+      {
+        "category": "hero_workspace",
+        "url": "https://images.unsplash.com/photo-1570305109029-a0059a91f8f7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwxfHxxdWViZWMlMjBhcmNoaXRlY3R1cmUlMjBNb250cmVhbCUyMG9mZmljZSUyMHByb2Zlc3Npb25hbCUyMGJ1c2luZXNzJTIwZG9jdW1lbnQlMjBkZXNrfGVufDB8fHx8MTc4ODQ1MTcxMnww&ixlib=rb-4.1.0&q=85",
+        "description": "Bureau professionnel modern avec interface de conformité"
+      },
+      {
+        "category": "quebec_building",
+        "url": "https://images.unsplash.com/photo-1744339699989-550c61f3ecb8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwyfHxxdWViZWMlMjBhcmNoaXRlY3R1cmUlMjBNb250cmVhbCUyMG9mZmljZSUyMHByb2Zlc3Npb25hbCUyMGJ1c2luZXNzJTIwZG9jdW1lbnQlMjBkZXNrfGVufDB8fHx8MTc4ODQ1MTcxMnww&ixlib=rb-4.1.0&q=85",
+        "description": "Architecture institutionnelle montréalaise"
+      }
+    ]
+  },
+  "testing_and_qa": {
+    "requirement": "All interactive elements (buttons, inputs, tabs, selects, pipeline nodes, modal triggers, export triggers) MUST include descriptive data-testid attributes in kebab-case.",
+    "examples": [
+      "welcome-mode-solo-button",
+      "welcome-mode-pro-button",
+      "login-submit-button",
+      "pipeline-stage-node-3",
+      "module1-section-1-input-company-name",
+      "module1-add-software-row-button",
+      "module2-add-measure-button",
+      "export-pdf-module1-button",
+      "audit-log-export-button"
+    ]
+  },
+  "universal_instructions": [
+    "Ensure all text is strictly in French (Quebec terminology: Francisation, OQLF, Analyse de la situation linguistique, Programme de francisation, Journal d'audit).",
+    "Never hide essential desktop controls behind mobile drawers unless on small viewports.",
+    "Ensure form fields auto-save locally/backend and show subtle animated 'Enregistré à HH:MM' state indicators.",
+    "Maintain strict multi-client isolation in PRO mode with clear header badges showing the selected active client company.",
+    "Do not use transparent backgrounds under dropdown menus or modals."
+  ]
+}
