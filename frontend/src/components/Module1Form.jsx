@@ -115,7 +115,7 @@ export function Module1Form({ dossier, onSaved }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {active.fields.map((f) => (
               <div key={f.id} className={f.type === "table" || f.type === "textarea" ? "md:col-span-2" : ""}>
-                <FieldRenderer field={f} sectionId={active.id} values={values} onChange={onChange} />
+                <FieldRenderer field={f} sectionId={active.id} values={values} onChange={onChange} dossierId={dossier.id} />
               </div>
             ))}
           </div>

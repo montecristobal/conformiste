@@ -1,0 +1,52 @@
+{
+  "summary": "Itération 4 — vérification des CORRECTIFS du rapport iteration_3 (backend + frontend). Nouveau fichier pytest /app/backend/tests/test_fixes_iteration4.py (18 tests) + relance complète de la suite : 68/69 passés (98,6%). TOUS les correctifs HIGH/MEDIUM/LOW annoncés sont confirmés : (1) I/O non bloquante — pendant une analyse de https://httpbin.org/delay/6, GET /api/catalogue/themes répond en 0,1–0,3 s (3 sondes, pire cas < 1 s ; auparavant 6,75 s) ; (2) verrouillage anti-force-brute sur l'email seul — 5×401 puis 429 via l'URL publique, et une connexion réussie réinitialise bien le compteur (4 échecs + succès + 4 échecs → toujours 401, jamais 429) ; (3) anti-SSRF — 127.0.0.1:8001, localhost, 169.254.169.254, 10.0.0.1, 192.168.1.1 et file:// tous rejetés en 400 « Adresse non autorisée (réseau interne) » ; (4) 502 générique — l'API renvoie bien {\"detail\":\"L'analyse du document a échoué…\"} sans stack ni URL interne (vérifié en direct sur 8001) ; (5) validation upload — .txt/.exe → 400, PDF de 16 Mo → 400 « Fichier trop volumineux », PNG accepté + round-trip download OK ; (6) DELETE /documents/{id} soft-delete → disparaît de la liste et journalisé ; (7) echeance_suggeree persistée (echeance_suggeree_date) — identique entre deux GET plan-correction et après rechargement de l'UI. Frontend e2e Playwright complet : login → dossier → onglet Analyse → état vide → upload PNG (contenu visuel réel) → URL → URL interne (400) avec marqueur document-failed-{id} + toast explicite → 2 analyses (8 constats) → plan 8 lignes → conversion en mesure → email-to-input contrôlé et encodé dans mailto (qa.test%2Bconformiste%40oqlf.gouv.qc.ca) → PDF téléchargé (analyse_linguistique_1140006666.pdf) → suppression document (3→2) → Module 2 → journal d'audit. État de chargement/erreur validé par interception réseau : documents-load-error + retry-load-button fonctionnels. PRINCIPE DE PRUDENCE 100% respecté : 8/8 constats en 'a_valider', texte_loi_valide=false partout, 0 occurrence de « Non conforme » dans l'UI et dans l'API.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "DELETE|GET /api/documents/{id}", "issue": "get_owned_document ne filtre pas is_deleted : un document soft-supprimé reste adressable — DELETE renvoie 200 au lieu de 404, et /download comme /analyze fonctionnent encore sur un document supprimé. Ajouter {\"is_deleted\": False} au find_one (seul test en échec : test_deleted_document_no_longer_addressable)."},
+      {"endpoint": "POST /api/documents/{id}/analyze", "issue": "Le detail 502 générique est correct côté application (vérifié sur 8001) mais l'edge/Cloudflare remplace toute réponse 502 de l'origine par sa page HTML « 502 Bad gateway » : le client ne reçoit ni JSON ni detail (le toast affiche donc le libellé de repli « Erreur d'analyse »). Recommandation : utiliser un code non-5xx pour un échec de récupération de la ressource distante (ex. 400/409/424) afin que le message utile atteigne réellement l'utilisateur."},
+      {"endpoint": "POST /api/dossiers/{id}/documents", "issue": "La taille n'est vérifiée qu'après file.read() en mémoire : un fichier de 16 Mo est intégralement chargé avant le rejet (risque mémoire sur payloads très volumineux). Lecture par blocs avec arrêt précoce, ou vérification de Content-Length, préférable."},
+      {"endpoint": "POST /api/dossiers/{id}/documents", "issue": "La validation ne porte que sur l'extension ; le content_type est repris du client sans vérification de la signature réelle (magic bytes). Un .png contenant un exécutable serait accepté et routé vers l'analyse vision."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AnalyseTab / DocumentRow", "issue": "Le marqueur d'échec d'analyse n'est stocké que dans l'état local (failedIds) : après un rechargement de page il disparaît, donc l'information « cette analyse a échoué » n'est toujours pas durable. Persister un champ (ex. last_analysis_error) côté document si l'objectif est la traçabilité.", "selector": "[data-testid^=\"document-failed-\"]", "priority": "LOW"},
+      {"component": "AnalyseTab / suppression", "issue": "Aucune confirmation avant DELETE : un clic sur la corbeille supprime immédiatement le document et son analyse (aucun undo). Ajouter un AlertDialog de confirmation.", "selector": "[data-testid^=\"document-delete-\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Onglet Analyse & non-conformités", "issues": ["Toujours ouvert depuis l'itération 3 : les textes 'Mesure suggérée' en slate-500 sur fond blanc/slate-50 restent à la limite basse du contraste AA (petit texte)", "Colonnes Constat/Mesure du plan de correction encore étroites (max-w-[200/220px]) — table dense quand le nombre de constats croît"]},
+      {"screen": "Dialogue de création de dossier", "issues": ["Avertissement React répété : « Missing `Description` or `aria-describedby={undefined}` for {DialogContent} » — ajouter un DialogDescription pour l'accessibilité"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_fixes_iteration4.py",
+    "/app/backend/tests/test_analysis_engine.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/fixes_i4.xml",
+    "/app/test_reports/pytest/all_i4.xml"
+  ],
+  "action_items": [
+    "MINOR : filtrer is_deleted dans get_owned_document (un document supprimé reste téléchargeable/analysable/re-supprimable → DELETE 200 au lieu de 404)",
+    "MINOR : remplacer le 502 par un code non-5xx (400/409/424) pour les échecs de récupération distante, sinon l'edge Cloudflare masque le detail générique et l'utilisateur ne voit qu'un message de repli",
+    "OPTIONNEL : valider la taille avant de charger tout le fichier en mémoire et vérifier les magic bytes en plus de l'extension",
+    "OPTIONNEL (UI) : persister l'échec d'analyse côté serveur + ajouter une confirmation avant suppression ; corriger le contraste des textes 'Mesure suggérée' et le DialogDescription manquant"
+  ],
+  "critical_code_review_comments": [
+    "server.py : run_in_threadpool correctement appliqué à put_object/get_object/fetch_url_text/extract_pdf_text — plus aucun blocage mesurable de la boucle d'événements (latence concurrente 0,1–0,3 s).",
+    "server.py login : identifier = email seul, compteur supprimé après succès et locked_until de 15 min — conforme au playbook (5 tentatives) et fiable derrière l'ingress.",
+    "analysis._validate_public_url : bonne approche (getaddrinfo + ipaddress sur TOUTES les réponses DNS). Limite connue : pas de protection contre la re-résolution DNS entre validation et requête (DNS rebinding) ni contre les redirections HTTP vers une IP privée (requests suit les redirects par défaut) — envisager allow_redirects=False ou une revalidation par hook.",
+    "server.py get_owned_document : find_one({\"id\": doc_id}) sans is_deleted → contourne le soft-delete (seul défaut fonctionnel restant).",
+    "_finding_status / plan_correction : prudence intacte (statut 'a_valider' tant que texte_loi_valide == False), echeance_suggeree_date figée à l'analyse — non-régression confirmée.",
+    "AnalyseTab.jsx (316 l.) : load() avec try/catch + loading/error/retry, emailTo contrôlé, mailto encodé — correctifs conformes. server.py atteint 723 l. : le split en routers (auth/dossiers/analyse) reste recommandé."
+  ],
+  "updated_files": ["/app/backend/tests/test_fixes_iteration4.py (nouveau)"],
+  "success_rate": {"backend": "98.6% (68/69 ; 17/18 sur les correctifs, 51/51 en régression dont test_brute_force_lockout désormais vert)", "frontend": "100% des parcours testés (login, upload, URL, analyse, plan, prudence, conversion, mailto, PDF, suppression, loading/erreur/retry, journal)"},
+  "seed_data_creation": "Backend : dossier 'TEST_Fixes I4 Inc.' (NEQ 1140004444) + 'TEST_Diag502' (NEQ 1140005555, diagnostic). Frontend : dossier 'TEST_UI Fixes I4 Inc.' (NEQ 1140006666) avec 1 URL analysée (example.com) et 1 mesure convertie au Module 2. Comptes de verrouillage jetables TEST_lock_*@example.com. Image de test /tmp/test_affiche_i4.png (PNG 760x420 avec texte anglais + textures).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "vild@yuville.com / Conformiste2026! — /app/memory/test_credentials.md présent et valide ; le compteur de tentatives a été remis à zéro par une connexion réussie en fin de test",
+  "context_for_next_testing_agent": "Les 8 correctifs de l'itération 3 sont validés (concurrence, lockout, SSRF, 502 générique côté app, validation upload, DELETE soft-delete, échéance persistée, mailto/loading/erreur UI). Restent : (a) get_owned_document ne filtre pas is_deleted (test test_deleted_document_no_longer_addressable en échec volontaire — il passera au vert après correctif) ; (b) l'edge remplace les 502 par du HTML, donc tester le detail générique via http://localhost:8001 uniquement ; (c) marqueur d'échec UI non persistant après reload. Suite : `cd /app/backend && python -m pytest tests/ -q` (pytest.ini : -n 2 --dist loadscope). Le test de concurrence utilise https://httpbin.org/delay/6 et un thread : garder ce pattern pour toute régression sur run_in_threadpool.",
+  "rca_of_the_issue": "Seul défaut restant : le soft-delete est appliqué en écriture (is_deleted=True) et respecté par list_documents/plan_correction, mais get_owned_document (utilisé par download/analyze/delete) requête uniquement sur l'id, donc les ressources supprimées restent accessibles et re-supprimables (DELETE idempotent renvoyant 200). Par ailleurs, le detail 502 générique n'atteint jamais le navigateur car le proxy edge substitue sa propre page d'erreur HTML à toute réponse 5xx de l'origine — d'où l'intérêt d'un code 4xx pour les échecs de récupération de ressource distante."
+}

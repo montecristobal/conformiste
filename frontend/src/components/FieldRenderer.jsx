@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -5,7 +6,50 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Paperclip } from "lucide-react";
+import { Plus, Trash2, Paperclip, Upload, Loader2 } from "lucide-react";
+import api, { openDocument } from "@/lib/api";
+import { toast } from "sonner";
+
+function FileUploadField({ tid, value, onChange, dossierId }) {
+  const [busy, setBusy] = useState(false);
+  const v = value && typeof value === "object" ? value : null;
+  const up = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await api.post(`/dossiers/${dossierId}/documents`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      onChange({ document_id: data.id, filename: data.original_filename });
+      toast.success("Document joint");
+    } catch (err) { toast.error("Échec du téléversement"); }
+    finally { setBusy(false); e.target.value = ""; }
+  };
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2">
+      {v ? (
+        <>
+          <Paperclip size={15} className="text-emerald-500 shrink-0" />
+          <button type="button" className="text-sm text-blue-600 hover:underline truncate" onClick={() => openDocument(v.document_id)} data-testid={`${tid}-view`}>{v.filename}</button>
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 ml-auto text-red-500" onClick={() => onChange("")} data-testid={`${tid}-remove`}><Trash2 size={14} /></Button>
+        </>
+      ) : typeof value === "string" && value ? (
+        <>
+          <Paperclip size={15} className="text-slate-400 shrink-0" />
+          <span className="text-sm text-slate-600 truncate">{value}</span>
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 ml-auto text-red-500" onClick={() => onChange("")}><Trash2 size={14} /></Button>
+        </>
+      ) : (
+        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-500 w-full" data-testid={`${tid}-label`}>
+          {busy ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} className="text-slate-400" />}
+          {busy ? "Téléversement…" : "Téléverser un document (PDF, image)"}
+          <input type="file" accept=".pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={up} disabled={busy || !dossierId} data-testid={tid} />
+        </label>
+      )}
+    </div>
+  );
+}
 
 function shouldShow(field, values, sectionId) {
   if (!field.showIf) return true;
@@ -13,7 +57,7 @@ function shouldShow(field, values, sectionId) {
   return field.showIf.in.includes(values[key]);
 }
 
-export function FieldRenderer({ field, sectionId, values, onChange }) {
+export function FieldRenderer({ field, sectionId, values, onChange, dossierId }) {
   if (!shouldShow(field, values, sectionId)) return null;
   const key = `${sectionId}.${field.id}`;
   const val = values[key];
@@ -99,12 +143,7 @@ export function FieldRenderer({ field, sectionId, values, onChange }) {
     return (
       <div className="space-y-1.5">
         {labelEl}
-        <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2">
-          <Paperclip size={15} className="text-slate-400" />
-          <Input data-testid={tid} value={val ?? ""} onChange={(e) => set(e.target.value)}
-            placeholder="Nom du document joint (téléversement à venir)"
-            className="border-0 bg-transparent px-0 focus-visible:ring-0" />
-        </div>
+        <FileUploadField tid={tid} value={val} onChange={set} dossierId={dossierId} />
       </div>
     );
   }

@@ -35,7 +35,25 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Export PDF Module 1 & 2 (téléchargement blob + Bearer). Journal d'audit horodaté + checksum + export CSV.
 - Tests : 33 tests pytest (32 pass) + flux frontend PRO/SOLO validés par l'agent de test.
 
-## Hors périmètre itération 1 (backlog)
+## Implémenté (2026-06 — itération 2, moteur d'analyse)
+- Téléversement réel de fichiers (stockage d'objets Emergent) — corrige le placeholder des champs fichier du Module 1.
+- Extraction de contenu : PDF (pdfplumber), images (OCR via LLM vision), sites web (scraping serveur + anti-SSRF).
+- Analyse LLM (OpenAI gpt-5.4, clé universelle Emergent) : détection de langue + constats factuels routés vers les thèmes du catalogue.
+- PRINCIPE DE PRUDENCE : drapeau `texte_loi_valide` par thème (tous à false). Constats en « à valider par un professionnel », jamais « non conforme » tant que non validé.
+- Plan de correction consolidé (constat, statut, mesure suggérée, échéance figée, coût), convertible en mesure du Module 2 d'un clic.
+- Brouillon de courriel OQLF (objet + corps + PDF téléchargé + lien mailto ; envoi manuel, jamais automatique).
+- Suppression (soft-delete) de documents, validation MIME/taille des uploads, I/O non bloquante (run_in_threadpool), lockout anti-force-brute sur email.
+- Tests : 68/69 pytest + parcours frontend complet validés (rapports iteration_3 & iteration_4).
+
+## Hors périmètre / backlog
+
+## Prochaines tâches (mis à jour)
+- Faire basculer des thèmes à `texte_loi_valide=true` (au cas par cas, après validation du texte légal) pour activer les qualifications de niveau 2.
+- Rappels d'échéance automatiques J-30 / J-7.
+- Paiements/abonnements Stripe pour les plans PRO/SOLO.
+- Optionnel : vérification magic bytes des fichiers, DNS-rebinding, split de server.py en routers.
+
+## Backlog historique (itération 1)
 - P1 : Paiements/abonnements Stripe (plans PRO/SOLO) — demandé, reporté.
 - P1 : Téléversement réel des pièces jointes (object storage) — actuellement nom de document texte seulement.
 - P1 : Interface RMO (rapport de mise en œuvre) — modèle de données déjà prêt (statut_mise_en_oeuvre).

@@ -13,6 +13,7 @@ import { StatusBadge, STATUT_OPTIONS } from "@/components/StatusBadge";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { Module1Form } from "@/components/Module1Form";
 import { Module2Programme } from "@/components/Module2Programme";
+import { AnalyseTab } from "@/components/AnalyseTab";
 import { AuditLog } from "@/components/AuditLog";
 import { toast } from "sonner";
 import { ArrowLeft, Send, MessageSquarePlus, Calendar } from "lucide-react";
@@ -110,6 +111,8 @@ export default function DossierDetail() {
     api.get("/catalogue/themes").then(({ data }) => setThemes(data)).catch(() => {});
   }, [id]);
 
+  const reload = () => api.get(`/dossiers/${id}`).then(({ data }) => setDossier(data)).catch(() => {});
+
   if (!dossier) return <Layout><div className="py-20 text-center text-slate-400">Chargement…</div></Layout>;
 
   return (
@@ -139,6 +142,7 @@ export default function DossierDetail() {
           <TabsTrigger value="apercu" data-testid="tab-apercu">Étape & aperçu</TabsTrigger>
           <TabsTrigger value="module1" data-testid="tab-module1">Module 1 — Analyse</TabsTrigger>
           <TabsTrigger value="module2" data-testid="tab-module2">Module 2 — Programme</TabsTrigger>
+          <TabsTrigger value="analyse" data-testid="tab-analyse">Analyse & non-conformités</TabsTrigger>
           <TabsTrigger value="journal" data-testid="tab-journal">Journal d'audit</TabsTrigger>
         </TabsList>
 
@@ -150,6 +154,9 @@ export default function DossierDetail() {
         </TabsContent>
         <TabsContent value="module2">
           <Module2Programme dossier={dossier} themes={themes} onSaved={setDossier} />
+        </TabsContent>
+        <TabsContent value="analyse">
+          <AnalyseTab dossier={dossier} onMesureAdded={reload} />
         </TabsContent>
         <TabsContent value="journal">
           <AuditLog dossierId={dossier.id} />

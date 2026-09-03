@@ -1,0 +1,60 @@
+{
+  "summary": "Itération 3 — test complet du MOTEUR D'ANALYSE (backend + frontend). Backend : nouveau fichier pytest /app/backend/tests/test_analysis_engine.py (17 tests, 100% passés) couvrant upload PDF/PNG (stockage Emergent + download round-trip), ajout d'URL, analyse LLM (URL/PDF/image vision gpt-5.4), principe de prudence, plan de correction, passerelle vers Module 2, brouillon de courriel (M1/M2), journal d'audit, isolation multi-utilisateurs. Régression : 49/50 des tests existants passent (1 échec réel sur le verrouillage anti-force-brute). Frontend : parcours e2e Playwright complet (login → dossier → onglet Analyse → URL + téléversement PNG → 5 analyses → 18 constats → plan 18 lignes → conversion en mesure → Module 2 → brouillon courriel M1/M2 + téléchargement PDF réel → téléversement réel Module 1 section 6 avec persistance → journal). PRINCIPE DE PRUDENCE 100% respecté : les 18 constats affichent 'À valider par un professionnel', aucun 'Non conforme' nulle part (UI et API).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/documents/{id}/analyze", "issue": "I/O BLOQUANTE dans un endpoint async : analysis.fetch_url_text (requests.get), extract_pdf_text (pdfplumber) et storage get_object/put_object sont synchrones et bloquent la boucle d'événements. Reproduction : lancer l'analyse d'une URL lente (https://httpbin.org/delay/8) puis un GET /api/themes en parallèle → la requête légère met 6,75 s au lieu de ~0,2 s. Une seule analyse gèle donc TOUTE l'API (et l'analyse d'une URL pointant vers l'API elle-même finit en 502 ingress). Correctif : envelopper ces appels dans fastapi.concurrency.run_in_threadpool (ou httpx async).", "priority": "HIGH"},
+      {"endpoint": "POST /api/auth/login", "issue": "Verrouillage anti-force-brute inopérant en préview/production : l'identifiant du compteur est `ip:email` avec request.client.host, or derrière l'ingress les requêtes arrivent d'IP différentes (constaté : 10.79.142.2 et 10.79.142.5 pour la même session de 6 tentatives → 4+2, jamais 429). Le verrouillage est contournable. Correctif : clé sur l'email seul (ou X-Forwarded-For première IP).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/dossiers/{id}/documents/url + /analyze", "issue": "SSRF : aucune validation/allowlist de l'URL fournie. Le serveur accepte et tente de scraper des adresses internes (http://127.0.0.1:8001/..., IP privées, métadonnées cloud). Ajouter un filtrage de schéma + résolution DNS interdisant les plages privées/loopback."},
+      {"endpoint": "POST /api/documents/{id}/analyze", "issue": "Le message d'exception brut est renvoyé au client dans le detail 502 (ex. HTTPSConnectionPool ... NameResolutionError), fuite d'information interne. Renvoyer un message générique et journaliser le détail côté serveur."},
+      {"endpoint": "POST /api/dossiers/{id}/documents", "issue": "Aucune validation serveur du type MIME ni de la taille du fichier téléversé (l'accept HTML est purement côté client) : n'importe quel binaire de n'importe quelle taille est stocké."},
+      {"endpoint": "documents", "issue": "Pas d'endpoint de suppression (soft-delete) exposé : le champ is_deleted existe mais aucun DELETE ; l'utilisateur ne peut pas retirer un document/URL ajouté par erreur."},
+      {"endpoint": "GET /api/dossiers/{id}/plan-correction", "issue": "Les échéances suggérées sont recalculées à chaque appel (date du jour + N jours) et ne sont donc pas stables/persistées ; l'échéance affichée dérive dans le temps."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AnalyseTab (load)", "issue": "La fonction load() (GET documents + plan-correction) n'a ni try/catch ni état de chargement : en cas d'échec réseau la promesse est rejetée sans message ni squelette de chargement (écran vide silencieux).", "selector": "[data-testid=\"plan-correction\"]", "priority": "MEDIUM"},
+      {"component": "AnalyseTab / email-to-input", "issue": "Le champ Destinataire utilise defaultValue et n'est pas contrôlé : la valeur saisie n'est ni conservée dans l'état ni injectée dans le lien mailto (mailto: reste vide même si l'utilisateur saisit une adresse).", "selector": "[data-testid=\"email-to-input\"], [data-testid=\"mailto-link\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Analyse d'un document en échec (URL invalide)", "issue": "L'appel renvoie 502 (correct) et le spinner se réinitialise bien, mais aucune trace d'erreur persistante dans l'UI : seul un toast fugace ; la ligne du document ne montre aucun statut d'échec. Impossible pour l'utilisateur de savoir plus tard que l'analyse a échoué.", "affected_selectors": ["[data-testid^=\"document-analyze-\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Onglet Analyse & non-conformités", "issues": ["Le tableau du plan de correction devient très dense (18 lignes, colonnes Constat/Mesure étroites max-w-[200/220px]) — envisager tronquage + expansion ou regroupement par thème", "Les textes 'Mesure suggérée' en slate-500/400 sur fond blanc sont à la limite basse du contraste (AA petit texte)"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_analysis_engine.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/analysis_engine.xml",
+    "/app/test_reports/pytest/all.xml"
+  ],
+  "action_items": [
+    "HIGH : sortir les I/O bloquantes (requests, pdfplumber, put_object/get_object) de la boucle async via run_in_threadpool — une analyse bloque actuellement toute l'API",
+    "HIGH : corriger la clé du compteur anti-force-brute (email seul ou X-Forwarded-For) — lockout actuellement inopérant derrière l'ingress",
+    "MEDIUM : valider/filtrer les URL soumises (anti-SSRF) et ne plus renvoyer l'exception brute dans le detail 502",
+    "MEDIUM : valider type MIME + taille des fichiers téléversés côté serveur",
+    "MEDIUM : rendre email-to-input contrôlé et l'injecter dans le lien mailto",
+    "MEDIUM : ajouter try/catch + état de chargement/erreur dans AnalyseTab.load() et un marqueur d'échec d'analyse sur la ligne du document",
+    "LOW : exposer une suppression (soft-delete) des documents/URL ; persister l'échéance suggérée au moment de l'analyse"
+  ],
+  "critical_code_review_comments": [
+    "server.py analyze_document : appels synchrones (requests/pdfplumber/storage) dans une coroutine → event loop bloqué, prouvé par mesure (6,75 s de latence sur une requête concurrente triviale). Utiliser run_in_threadpool.",
+    "server.py login : identifier = f\"{ip}:{email}\" non fiable derrière un proxy/ingress multi-pods ; le lockout playbook (5 tentatives) ne se déclenche jamais.",
+    "analysis.fetch_url_text accepte toute URL sans allowlist → SSRF vers les services internes (127.0.0.1:8001 accessible).",
+    "_finding_status et plan_correction sont corrects et conformes au principe de prudence (statut 'a_valider' tant que texte_loi_valide == False, aucune voie de code ne peut produire 'non_conforme' aujourd'hui) — bien validé, ne pas régresser.",
+    "AnalyseTab.jsx (283 l.) et server.py (706 l.) restent sous la limite, mais server.py commence à mélanger auth/dossiers/moteur d'analyse : envisager un split en routers (auth.py, dossiers.py, analyse.py)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_analysis_engine.py (nouveau)"
+  ],
+  "success_rate": {"backend": "97% (66/67 : 17/17 moteur d'analyse, 49/50 régression)", "frontend": "95% (tous les parcours du moteur d'analyse OK ; réserves sur gestion d'erreur et champ destinataire)"},
+  "seed_data_creation": "Dossiers de test créés via API et UI : 'TEST_Analyse Inc.' (NEQ 1140000999) et 'TEST_UI Analyse Inc.' (NEQ 1140000777) sur le compte vild@yuville.com ; documents de test : example.com (URL), TEST_affichage.png / test_affiche.png (affichage anglais), TEST_handbook.pdf, test_politique.pdf (pièce jointe Module 1 s6), plus 2 URL invalides pour tester les erreurs. Fichiers sources locaux : /tmp/test_affiche.png, /tmp/test_politique.pdf.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO, admin) — /app/memory/test_credentials.md présent et valide",
+  "context_for_next_testing_agent": "Le moteur d'analyse fonctionne de bout en bout : LLM gpt-5.4 (texte + vision OCR) renvoie du JSON valide, langue_detectee='autre' pour du contenu anglais, thèmes routés correctement (A1/A2/A5/B3/B4/B5/B7). Prudence vérifiée aux 3 niveaux (API analyse, API plan-correction, UI badges) : 100% 'a_valider', 0 'non_conforme'. Passerelle plan→mesure vérifiée en base (module2_mesures +1, source='analyse', converti=true) et à l'écran (Module 2 pré-rempli). Téléversement réel Module 1 : les champs 'file' sont CONDITIONNELS (showIf) — pour les tester, aller onglet module1 → m1-nav-s6 → cocher m1-s6-politique_embauche-opt-Oui (écrite) → input m1-s6-politique_embauche_piece ; upload + persistance après reload + lien 'Voir' (nouvel onglet) validés. Suite pytest à relancer : `cd /app/backend && python -m pytest tests/ -q` (pytest.ini impose -n 2 --dist loadscope, donc tous les tests séquentiels partageant un état doivent rester dans UNE seule classe). Après correctif du lockout, re-tester TestAuth::test_brute_force_lockout. Après passage en run_in_threadpool, re-tester la concurrence (analyse lente + requête parallèle).",
+  "rca_of_the_issue": "1) Blocage API : analyze_document exécute des appels réseau/CPU synchrones (requests.get, pdfplumber, SDK stockage) directement dans une coroutine ; uvicorn n'a qu'une boucle d'événements, donc toutes les autres requêtes attendent la fin de l'analyse (mesuré : 6,75 s de latence sur GET /api/themes pendant une analyse de 8 s ; auto-appel à 127.0.0.1:8001 → interblocage puis 502 de l'ingress). 2) Lockout : la clé du compteur inclut l'IP source, non stable derrière l'ingress Kubernetes (plusieurs pods proxy), donc les 5 tentatives ne sont jamais comptées sur la même clé."
+}

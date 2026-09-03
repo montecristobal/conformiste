@@ -39,6 +39,13 @@ export async function downloadPdf(path, filename) {
   URL.revokeObjectURL(url);
 }
 
+export async function openDocument(docId) {
+  const { data } = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
+  const url = URL.createObjectURL(data);
+  window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 export function formatApiError(detail) {
   if (detail == null) return "Une erreur est survenue. Veuillez réessayer.";
   if (typeof detail === "string") return detail;

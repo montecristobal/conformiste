@@ -140,6 +140,12 @@ THEMES_LEGAUX = [
 ]
 
 
+# Chaque thème porte un drapeau de validation du texte légal (principe de prudence).
+# Tant que texte_loi_valide == False, le moteur d'analyse reste au niveau « à valider ».
+for _t in THEMES_LEGAUX:
+    _t.setdefault("texte_loi_valide", False)
+
+
 # Étapes du cycle de vie d'un dossier (pipeline légal)
 PIPELINE_STAGES = [
     {"key": "inscription", "ordre": 1, "label": "Inscription de l'entreprise",

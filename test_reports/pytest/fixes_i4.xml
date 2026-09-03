@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="18" time="18.506" timestamp="2026-09-03T23:21:07.047767+00:00" hostname="agent-env-724d420a-aeb8-4860-88f2-49cf8fc6daea"><testcase classname="tests.test_fixes_iteration4.TestUrlSecurity" name="test_internal_urls_rejected[http://127.0.0.1:8001/api/catalogue/themes]" time="1.114" /><testcase classname="tests.test_fixes_iteration4.TestUploadValidation" name="test_reject_txt" time="1.071" /><testcase classname="tests.test_fixes_iteration4.TestUploadValidation" name="test_reject_exe" time="0.220" /><testcase classname="tests.test_fixes_iteration4.TestUrlSecurity" name="test_internal_urls_rejected[http://169.254.169.254/latest/meta-data/]" time="0.327" /><testcase classname="tests.test_fixes_iteration4.TestUploadValidation" name="test_reject_oversize" time="1.705" /><testcase classname="tests.test_fixes_iteration4.TestUrlSecurity" name="test_internal_urls_rejected[http://10.0.0.1/]" time="0.268" /><testcase classname="tests.test_fixes_iteration4.TestUrlSecurity" name="test_internal_urls_rejected[http://192.168.1.1/admin]" time="0.280" /><testcase classname="tests.test_fixes_iteration4.TestUrlSecurity" name="test_internal_urls_rejected[http://localhost:8001/api/auth/me]" time="0.270" /><testcase classname="tests.test_fixes_iteration4.TestUrlSecurity" name="test_scheme_rejected" time="0.329" /><testcase classname="tests.test_fixes_iteration4.TestUrlSecurity" name="test_502_does_not_leak_exception" time="0.402"><failure message="requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)">/root/.venv/lib/python3.11/site-packages/requests/models.py:1116: in json
+    return complexjson.loads(self.text, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:337: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/json/decoder.py:355: in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+E   json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+tests/test_fixes_iteration4.py:202: in test_502_does_not_leak_exception
+    detail = a.json().get("detail", "")
+             ^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/models.py:1120: in json
+    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+E   requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)</failure></testcase><testcase classname="tests.test_fixes_iteration4.TestUploadValidation" name="test_accept_png" time="0.807" /><testcase classname="tests.test_fixes_iteration4.TestBruteForceLockout" name="test_lockout_after_five_failures" time="1.041" /><testcase classname="tests.test_fixes_iteration4.TestDeleteAndPlan" name="test_soft_delete_removes_from_list" time="0.739"><failure message="AssertionError: 200&#10;assert 200 == 404&#10; +  where 200 = &lt;Response [200]&gt;.status_code">tests/test_fixes_iteration4.py:271: in test_soft_delete_removes_from_list
+    assert again.status_code == 404, again.status_code
+E   AssertionError: 200
+E   assert 200 == 404
+E    +  where 200 = &lt;Response [200]&gt;.status_code</failure></testcase><testcase classname="tests.test_fixes_iteration4.TestBruteForceLockout" name="test_successful_login_resets_counter" time="3.532" /><testcase classname="tests.test_fixes_iteration4.TestDeleteAndPlan" name="test_analysis_prudence_and_stable_echeance" time="5.919" /><testcase classname="tests.test_fixes_iteration4.TestNonBlockingIO" name="test_light_request_during_slow_analysis" time="10.176" /><testcase classname="tests.test_fixes_iteration4.TestDeleteAndPlan" name="test_courriel_draft_both_modules" time="0.157" /><testcase classname="tests.test_fixes_iteration4.TestDeleteAndPlan" name="test_audit_journal" time="0.077" /></testsuite></testsuites>

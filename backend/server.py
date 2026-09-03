@@ -7,6 +7,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 import logging
 import uuid
+import base64
 import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Any, Dict
@@ -14,8 +15,9 @@ from typing import List, Optional, Any, Dict
 import jwt
 import bcrypt
 from bson import ObjectId
-from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File, Header, Query
 from fastapi.responses import StreamingResponse
+from fastapi.concurrency import run_in_threadpool
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
@@ -23,6 +25,8 @@ from dateutil.relativedelta import relativedelta
 
 from catalogue import THEMES_LEGAUX, PIPELINE_STAGES
 from pdf_export import build_module1_pdf, build_module2_pdf
+from storage import put_object, get_object, init_storage, APP_NAME, MIME_TYPES
+import analysis
 
 # ---------------------------------------------------------------- DB / app
 mongo_url = os.environ["MONGO_URL"]
@@ -216,8 +220,7 @@ async def register(body: RegisterIn, response: Response):
 @api.post("/auth/login")
 async def login(body: LoginIn, request: Request, response: Response):
     email = body.email.lower()
-    ip = request.client.host if request.client else "unknown"
-    identifier = f"{ip}:{email}"
+    identifier = email
     rec = await db.login_attempts.find_one({"identifier": identifier})
     now = datetime.now(timezone.utc)
     if rec and rec.get("locked_until"):
@@ -424,6 +427,254 @@ async def export_module2(dossier_id: str, user: dict = Depends(get_current_user)
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
 
+# ---------------------------------------------------------------- moteur d'analyse
+class UrlIn(BaseModel):
+    url: str
+
+
+def theme_by_id(tid: str) -> Optional[dict]:
+    return next((t for t in THEMES_LEGAUX if t["id"] == tid), None)
+
+
+def serialize_doc(d: dict) -> dict:
+    d.pop("_id", None)
+    return d
+
+
+async def get_owned_document(doc_id: str, user: dict) -> dict:
+    doc = await db.documents.find_one({"id": doc_id, "is_deleted": False})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document introuvable")
+    await get_owned_dossier(doc["dossier_id"], user)
+    return doc
+
+
+def _finding_status(theme_id: str, element: dict) -> str:
+    t = theme_by_id(theme_id)
+    if t and t.get("texte_loi_valide") and element.get("potentiellement_non_conforme"):
+        return "non_conforme"
+    return "a_valider"
+
+
+ALLOWED_UPLOAD_EXT = {"pdf", "png", "jpg", "jpeg", "webp"}
+MAX_UPLOAD_BYTES = 15 * 1024 * 1024
+
+
+@api.post("/dossiers/{dossier_id}/documents")
+async def upload_document(dossier_id: str, file: UploadFile = File(...),
+                          user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    ext = (file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "")
+    if ext not in ALLOWED_UPLOAD_EXT:
+        raise HTTPException(status_code=400, detail="Type de fichier non autorisé (PDF, PNG, JPEG, WEBP).")
+    content_type = file.content_type or MIME_TYPES.get(ext, "application/octet-stream")
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (maximum 15 Mo).")
+    path = f"{APP_NAME}/uploads/{user['id']}/{uuid.uuid4()}.{ext}"
+    result = await run_in_threadpool(put_object, path, data, content_type)
+    doc = {
+        "id": str(uuid.uuid4()), "dossier_id": dossier_id, "type": "file",
+        "kind": "image" if content_type.startswith("image/") else ("pdf" if ext == "pdf" else "file"),
+        "original_filename": file.filename, "storage_path": result["path"],
+        "content_type": content_type, "size": result.get("size", len(data)),
+        "url": None, "analysis": None, "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.documents.insert_one(dict(doc))
+    await audit(dossier_id, user, "Téléversement d'un document", file.filename)
+    return serialize_doc(doc)
+
+
+@api.post("/dossiers/{dossier_id}/documents/url")
+async def add_url_document(dossier_id: str, body: UrlIn,
+                           user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    doc = {
+        "id": str(uuid.uuid4()), "dossier_id": dossier_id, "type": "url", "kind": "url",
+        "original_filename": body.url, "storage_path": None, "content_type": "text/html",
+        "size": 0, "url": body.url, "analysis": None, "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.documents.insert_one(dict(doc))
+    await audit(dossier_id, user, "Ajout d'une URL à analyser", body.url)
+    return serialize_doc(doc)
+
+
+@api.get("/dossiers/{dossier_id}/documents")
+async def list_documents(dossier_id: str, user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    rows = await db.documents.find({"dossier_id": dossier_id, "is_deleted": False},
+                                   {"_id": 0}).to_list(1000)
+    rows.sort(key=lambda r: r["created_at"], reverse=True)
+    return rows
+
+
+@api.get("/documents/{doc_id}/download")
+async def download_document(doc_id: str, user: dict = Depends(get_current_user)):
+    doc = await get_owned_document(doc_id, user)
+    if not doc.get("storage_path"):
+        raise HTTPException(status_code=400, detail="Ce document n'a pas de fichier stocké")
+    data, ct = await run_in_threadpool(get_object, doc["storage_path"])
+    return Response(content=data, media_type=doc.get("content_type") or ct)
+
+
+@api.delete("/documents/{doc_id}")
+async def delete_document(doc_id: str, user: dict = Depends(get_current_user)):
+    doc = await get_owned_document(doc_id, user)
+    await db.documents.update_one({"id": doc_id}, {"$set": {"is_deleted": True}})
+    await audit(doc["dossier_id"], user, "Suppression d'un document", doc.get("original_filename", ""))
+    return {"ok": True}
+
+
+@api.post("/documents/{doc_id}/analyze")
+async def analyze_document(doc_id: str, user: dict = Depends(get_current_user)):
+    doc = await get_owned_document(doc_id, user)
+    try:
+        if doc["type"] == "url":
+            text = await run_in_threadpool(analysis.fetch_url_text, doc["url"])
+            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc.get("original_filename", ""))
+        elif doc.get("kind") == "image":
+            data, ct = await run_in_threadpool(get_object, doc["storage_path"])
+            b64 = base64.b64encode(data).decode("utf-8")
+            result = await analysis.run_llm_analysis("image", (b64, ct), THEMES_LEGAUX, doc["original_filename"])
+        elif doc.get("kind") == "pdf":
+            data, ct = await run_in_threadpool(get_object, doc["storage_path"])
+            text = await run_in_threadpool(analysis.extract_pdf_text, data)
+            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc["original_filename"])
+        else:
+            data, ct = await run_in_threadpool(get_object, doc["storage_path"])
+            try:
+                text = data.decode("utf-8", errors="ignore")
+            except Exception:
+                text = ""
+            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc["original_filename"])
+    except HTTPException:
+        raise
+    except analysis.UrlValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Analyse échouée pour {doc_id}: {e}")
+        raise HTTPException(status_code=424, detail="L'analyse du document a échoué. Veuillez réessayer plus tard.")
+
+    now_date = datetime.now(timezone.utc).date()
+    for el in result.get("elements", []):
+        el["id"] = str(uuid.uuid4())
+        el["converti"] = False
+        el["statut"] = _finding_status(el.get("theme_id"), el)
+        jours = el.get("echeance_suggeree_jours")
+        el["echeance_suggeree_date"] = (now_date + timedelta(days=jours)).isoformat() if isinstance(jours, int) else None
+    result["analyzed_at"] = datetime.now(timezone.utc).isoformat()
+    await db.documents.update_one({"id": doc_id}, {"$set": {"analysis": result}})
+    await audit(doc["dossier_id"], user, "Analyse d'un document",
+                f"{doc.get('original_filename', '')} — {len(result.get('elements', []))} élément(s)")
+    doc["analysis"] = result
+    return serialize_doc(doc)
+
+
+@api.get("/dossiers/{dossier_id}/plan-correction")
+async def plan_correction(dossier_id: str, user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    docs = await db.documents.find({"dossier_id": dossier_id, "is_deleted": False},
+                                   {"_id": 0}).to_list(1000)
+    items = []
+    for doc in docs:
+        ana = doc.get("analysis") or {}
+        source = doc.get("url") or doc.get("original_filename") or "Document"
+        for el in ana.get("elements", []):
+            t = theme_by_id(el.get("theme_id"))
+            items.append({
+                "finding_id": el.get("id"),
+                "document_id": doc["id"],
+                "source": source,
+                "theme_id": el.get("theme_id"),
+                "theme_nom": t["nom_theme"] if t else el.get("theme_id"),
+                "texte_loi_valide": bool(t and t.get("texte_loi_valide")),
+                "constat": el.get("constat", ""),
+                "statut": el.get("statut", "a_valider"),
+                "mesure_suggeree": el.get("mesure_suggeree", ""),
+                "echeance_suggeree": el.get("echeance_suggeree_date"),
+                "cout_approximatif": el.get("cout_approximatif", ""),
+                "converti": bool(el.get("converti")),
+            })
+    return items
+
+
+@api.post("/dossiers/{dossier_id}/plan-correction/{finding_id}/to-mesure")
+async def finding_to_mesure(dossier_id: str, finding_id: str,
+                            user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    docs = await db.documents.find({"dossier_id": dossier_id, "is_deleted": False}).to_list(1000)
+    target_doc, target_el = None, None
+    for doc in docs:
+        for el in (doc.get("analysis") or {}).get("elements", []):
+            if el.get("id") == finding_id:
+                target_doc, target_el = doc, el
+                break
+        if target_el:
+            break
+    if not target_el:
+        raise HTTPException(status_code=404, detail="Élément introuvable")
+
+    jours = target_el.get("echeance_suggeree_jours")
+    ech = ""
+    if isinstance(jours, int):
+        ech = (datetime.now(timezone.utc).date() + timedelta(days=jours)).isoformat()
+    mesure = {
+        "id": str(uuid.uuid4()), "theme_id": target_el.get("theme_id"),
+        "mesure_engagee": target_el.get("mesure_suggeree", ""),
+        "precisions_entreprise": target_el.get("constat", ""),
+        "precisions_oqlf": "", "propositions_oqlf": "",
+        "echeance": ech, "statut_mise_en_oeuvre": "a_faire",
+        "source": "analyse",
+    }
+    mesures = d.get("module2_mesures", []) or []
+    mesures.append(mesure)
+    await db.dossiers.update_one({"id": dossier_id}, {"$set": {
+        "module2_mesures": mesures, "updated_at": datetime.now(timezone.utc).isoformat()}})
+
+    target_el["converti"] = True
+    await db.documents.update_one({"id": target_doc["id"]},
+                                  {"$set": {"analysis": target_doc["analysis"]}})
+    await audit(dossier_id, user, "Conversion d'un constat en mesure (Module 2)",
+                target_el.get("theme_id", ""))
+    return {"mesure": mesure}
+
+
+@api.get("/dossiers/{dossier_id}/courriel")
+async def courriel_draft(dossier_id: str, module: int = Query(1),
+                         user: dict = Depends(get_current_user)):
+    d = enrich_dossier(await get_owned_dossier(dossier_id, user))
+    nom = d.get("nom_entreprise", "")
+    neq = d.get("neq", "—")
+    if module == 2:
+        objet = f"Programme de francisation — {nom} (NEQ {neq})"
+        corps = (
+            f"Bonjour,\n\n"
+            f"Vous trouverez ci-joint le programme de francisation de l'entreprise {nom} "
+            f"(NEQ {neq}), établi conformément à la Charte de la langue française.\n\n"
+            f"Le document PDF est joint séparément à ce courriel.\n\n"
+            f"Cordialement,\n{user.get('name', '')}"
+        )
+        pdf_path = f"/dossiers/{dossier_id}/export/module2"
+        pdf_filename = f"programme_francisation_{neq}.pdf"
+    else:
+        objet = f"Analyse de la situation linguistique — {nom} (NEQ {neq})"
+        ech = d.get("echeance_module1")
+        corps = (
+            f"Bonjour,\n\n"
+            f"Vous trouverez ci-joint l'analyse de la situation linguistique de l'entreprise "
+            f"{nom} (NEQ {neq})"
+            + (f", à transmettre au plus tard le {ech}" if ech else "")
+            + ".\n\nLe document PDF est joint séparément à ce courriel.\n\n"
+            f"Cordialement,\n{user.get('name', '')}"
+        )
+        pdf_path = f"/dossiers/{dossier_id}/export/module1"
+        pdf_filename = f"analyse_linguistique_{neq}.pdf"
+    return {"to": "", "subject": objet, "body": corps,
+            "pdf_path": pdf_path, "pdf_filename": pdf_filename}
+
+
 # ---------------------------------------------------------------- startup
 @app.on_event("startup")
 async def startup():
@@ -432,6 +683,12 @@ async def startup():
     await db.clients.create_index("owner_id")
     await db.audit_logs.create_index("dossier_id")
     await db.login_attempts.create_index("identifier", unique=True)
+    await db.documents.create_index("dossier_id")
+    try:
+        init_storage()
+        logger.info("Stockage d'objets initialisé.")
+    except Exception as e:
+        logger.error(f"Échec init stockage : {e}")
     # seed owner account
     admin_email = os.environ.get("ADMIN_EMAIL", "").lower()
     admin_pwd = os.environ.get("ADMIN_PASSWORD", "")

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, FolderOpen, AlarmClock, Building2, Layers } from "lucide-react";
@@ -48,7 +48,9 @@ function CreateDossierDialog({ clients, isPro, onCreated }) {
         </Button>
       </DialogTrigger>
       <DialogContent className="bg-white">
-        <DialogHeader><DialogTitle>Nouveau dossier de francisation</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Nouveau dossier de francisation</DialogTitle>
+          <DialogDescription>Renseignez l'entreprise et la date d'attestation pour calculer l'échéance légale.</DialogDescription>
+        </DialogHeader>
         <div className="space-y-4 py-2">
           {isPro && (
             <div className="space-y-1.5">
