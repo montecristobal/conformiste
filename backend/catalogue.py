@@ -149,6 +149,22 @@ for _t in THEMES_LEGAUX:
                "external_citation", "reference_date", "retrieved_at"):
         _t.setdefault(_f, None)
 
+# Thème validé manuellement (niveau 2 activé) : A5 — Affichage public et publicité commerciale.
+# Le texte de loi a été vérifié ; le moteur peut donc qualifier « non conforme » sur ce thème.
+for _t in THEMES_LEGAUX:
+    if _t["id"] == "A5":
+        _t["texte_loi_valide"] = True
+        _t["texte_loi"] = (
+            "L'affichage public et la publicité commerciale doivent se faire en français. "
+            "Ils peuvent également être faits à la fois en français et dans une autre langue "
+            "pourvu que le français y figure de façon nettement prédominante "
+            "(Charte de la langue française, art. 58)."
+        )
+        _t["external_source_type"] = "charte_langue_francaise"
+        _t["external_citation"] = "Charte de la langue française, RLRQ c. C-11, art. 58"
+        _t["reference_date"] = "2022-06-01"
+        _t["retrieved_at"] = "2026-06-01"
+
 
 # Étapes du cycle de vie d'un dossier (pipeline légal)
 PIPELINE_STAGES = [

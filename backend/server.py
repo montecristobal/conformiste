@@ -29,6 +29,7 @@ from catalogue import THEMES_LEGAUX, PIPELINE_STAGES
 from pdf_export import build_module1_pdf, build_module2_pdf
 from storage import put_object, get_object, init_storage, APP_NAME, MIME_TYPES
 import analysis
+import mailer
 
 # ---------------------------------------------------------------- DB / app
 mongo_url = os.environ["MONGO_URL"]
@@ -715,6 +716,13 @@ async def generate_reminders():
             created += 1
         except DuplicateKeyError:
             continue
+        # Rappel aussi par courriel (en plus de la notification dans l'app).
+        try:
+            owner = await db.users.find_one({"_id": ObjectId(d["owner_id"])})
+            if owner and owner.get("email"):
+                await mailer.send_reminder_email(owner["email"], d.get("nom_entreprise", ""), message, d["id"])
+        except Exception as ee:
+            logger.warning(f"Courriel de rappel échoué (dossier {d['id']}): {ee}")
     logger.info(f"Rappels générés : {created}")
     return created
 

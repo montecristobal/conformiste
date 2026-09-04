@@ -54,6 +54,11 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Robustesse : retry/backoff sur le stockage d'objets (5xx transitoires), insertion de notifications protégée contre les doublons concurrents.
 - Tests : 87/87 pytest + parcours frontend validés (rapport iteration_5).
 
+## Implémenté (2026-06 — itération 4)
+- Validation d'un thème : A5 (Affichage public & publicité commerciale) passé à `texte_loi_valide=true` avec texte de loi (art. 58) et citation externe ; le moteur qualifie désormais « non conforme » sur A5 (les autres thèmes restent « à valider »).
+- Regroupement des rappels : le panneau de notifications regroupe par dossier (rappel le plus urgent en tête, badge « N rappels »), badge de non-lus compté par dossier.
+- Rappels par courriel : envoi Resend géré par Emergent (mailer.py + gate de sécurité), en plus des notifications in-app, déclenché par la génération de rappels (destinataire = propriétaire du dossier, gabarit serveur, lien https vers le dossier).
+
 ## Prochaines tâches (mis à jour)
 - Faire basculer des thèmes à `texte_loi_valide=true` (au cas par cas, après validation du texte légal) pour activer les qualifications de niveau 2.
 - Rappels d'échéance automatiques J-30 / J-7.
