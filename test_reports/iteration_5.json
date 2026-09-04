@@ -1,0 +1,54 @@
+{
+  "summary": "Iteration 5 (both). Backend: 87/87 pytest passed (new /app/backend/tests/test_iteration5.py + full regression suites migrated to /api/v1). Verified API versioning (/api/v1 live, old /api returns 404), cron reminders auth (401 without/with wrong secret, 200 {status:accepted} with WEBHOOK_CRON_SECRET) + generation (21 notifications: 15 retard / 3 j30 / 3 j7) + idempotency (no duplicates on 2nd run) + type/jours coherence, notifications GET/read/read-all with owner scoping and no Mongo _id, passive CLF-Expert fields (all 22 themes: texte_loi_valide=false + 6 external_* fields null; converted mesure also carries the 6 null fields), and non-regression (image/PDF/URL upload, LLM analysis, plan de correction, conversion Module 2, courriel, prudence 'a_valider'). Frontend (Playwright, 1920x1080): login via /api/v1 OK; notifications bell + badge (21) + panel + click-to-navigate/mark-read (21->20) + 'Tout marquer lu' (badge disappears) all work; PNG and JPEG uploads render real thumbnails (document-thumb-<id>, naturalWidth=900), URL/PDF docs keep the generic icon; dashboard/clients/module1 save/journal/tabs all functional with zero failing /api/ responses and zero console errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/documents/{id}/analyze", "issue": "Intermittent 424 for image documents: get_object() got a 503 from the Emergent object store (log: 'Analyse échouée ... 503 Service Unavailable .../objstore/.../*.png'). Reproduced once via UI; 3/3 backend retries then succeeded (~25% observed failure rate). No retry/backoff around get_object → user sees 'Échec de l'analyse'. Recommend 2-3 retries with backoff on 5xx before returning 424."},
+      {"endpoint": "GET /api/v1/notifications", "issue": "Response is capped at 50 rows (rows[:50]) while the frontend computes the unread badge client-side from that slice; with >50 notifications the badge under-reports. Prefer returning an unread_count from the server."},
+      {"endpoint": "POST /api/v1/cron/reminders", "issue": "generate_reminders() does find_one-then-insert_one against a unique index (dossier_id,type): two concurrent cron runs would raise DuplicateKeyError and abort the whole background loop (remaining dossiers get no reminder). Wrap insert in try/except DuplicateKeyError or use upsert."},
+      {"endpoint": "POST /api/v1/cron/reminders", "issue": "Reminders are never refreshed: once a 'retard' notification exists for a dossier, its message/jours stay frozen at creation time (unique index prevents an updated one). Consider updating the existing doc's message/jours/echeance."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Analyse d'une photo (UI)", "issue": "Upload+Analyser on a PNG returned 424 once (object-store 503 upstream); the row correctly shows the 'Échec de l'analyse' badge but there is no retry affordance beyond re-clicking 'Analyser'.", "affected_selectors": ["[data-testid^='document-analyze-']", "[data-testid^='document-failed-']"]}
+    ],
+    "design_issues": [
+      {"screen": "En-tête / panneau de notifications", "issues": ["Panneau 320px lisible et contrasté, aucun problème bloquant", "Avec 21 rappels quasi identiques (données de test dupliquées), la liste est répétitive — envisager un regroupement par dossier"]},
+      {"screen": "Tableau de bord / Clients", "issues": ["54 dossiers et 9 clients 'TEST_*' laissés par les itérations précédentes polluent l'UI et la génération de rappels — nettoyage de la base de préproduction recommandé"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration5.py",
+    "/app/backend/tests/test_image_analysis_flaky.py",
+    "/app/test_reports/pytest/iteration5_full.xml"
+  ],
+  "action_items": [
+    "Add retry/backoff (2-3 attempts on 5xx) around get_object() in analyze_document to avoid intermittent 424 on image analysis.",
+    "Return a server-side unread_count from GET /api/v1/notifications (badge currently derived from the 50-row slice).",
+    "Guard notification insert against DuplicateKeyError (or use upsert) so a concurrent cron run cannot abort the reminder loop.",
+    "Optional: refresh existing 'retard' notifications (message/jours) instead of leaving them frozen.",
+    "Optional: purge TEST_* dossiers/clients/notifications from the preview DB."
+  ],
+  "critical_code_review_comments": [
+    "server.py is at 795 lines — close to the 700-line guideline; notifications/cron and documents/analysis blocks are good candidates for extraction into routers.",
+    "generate_reminders() scans all dossiers with find({}).to_list(5000) — unbounded scan that will not scale; iterate with a cursor and filter on echeance.",
+    "clf_expert_client.py is correctly inert (docstring only, no network) — matches the passive-preparation requirement.",
+    "Frontend uses process.env.REACT_APP_BACKEND_URL only in lib/api.js; no hardcoded /api paths anywhere else — good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration5.py",
+    "/app/backend/tests/test_image_analysis_flaky.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_analysis_engine.py",
+    "/app/backend/tests/test_fixes_iteration4.py"
+  ],
+  "success_rate": {"backend": "100% (87/87)", "frontend": "100% of tested flows (1 flaky image-analysis 424 from upstream object store)"},
+  "seed_data_creation": "Notifications generated by calling the cron endpoint on existing vild@yuville.com dossiers (21 rows). Reset read=false once to test the UI badge, then marked all read via the UI. Test documents (TEST_*, vitrine_test.png/.jpg, https://example.com) were uploaded and deleted during tests.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO admin); WEBHOOK_CRON_SECRET read from /app/backend/.env",
+  "context_for_next_testing_agent": "All backend suites now target ${REACT_APP_BACKEND_URL}/api/v1 (constant API in each test file). tests/test_fixes_iteration4.py::test_502_does_not_leak_exception was relaxed to accept 424 or 502 (server now returns 424 for failed analysis). Notifications are all read after this run — reset read=false in mongo (db.notifications) before re-testing the unread badge. Image analysis can intermittently return 424 due to an upstream object-store 503; retry before declaring a failure.",
+  "rca_of_the_issue": "Image analysis 424: analyze_document() calls get_object(storage_path) which fetches the file from the Emergent object store over HTTP; a transient 503 from that service raises, is caught by the generic except and mapped to 424 with no retry, so the UI marks the document 'Échec de l'analyse'. Confirmed in backend logs (503 for .../objstore/.../<uuid>.png) and by 3/3 subsequent successes on identical payloads."
+}

@@ -8,6 +8,7 @@ load_dotenv(ROOT_DIR / ".env")
 import logging
 import uuid
 import base64
+import hmac
 import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Any, Dict
@@ -15,11 +16,12 @@ from typing import List, Optional, Any, Dict
 import jwt
 import bcrypt
 from bson import ObjectId
-from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File, Header, Query
+from fastapi import FastAPI, APIRouter, Request, Response, HTTPException, Depends, UploadFile, File, Header, Query, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.concurrency import run_in_threadpool
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, EmailStr, Field
 from dateutil.relativedelta import relativedelta
 
@@ -34,7 +36,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 app = FastAPI(title="CONFORMISTE API")
-api = APIRouter(prefix="/api")
+api = APIRouter(prefix="/api/v1")
 
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALG = "HS256"
@@ -358,6 +360,11 @@ async def save_module1(dossier_id: str, body: Module1In,
 async def save_module2(dossier_id: str, body: Module2In,
                        user: dict = Depends(get_current_user)):
     await get_owned_dossier(dossier_id, user)
+    EXTERNAL_FIELDS = ("external_legal_object_id", "external_source_type", "external_version_id",
+                       "external_citation", "reference_date", "retrieved_at")
+    for m in body.module2_mesures:
+        for f in EXTERNAL_FIELDS:
+            m.setdefault(f, None)
     await db.dossiers.update_one({"id": dossier_id}, {"$set": {
         "module2_admin": body.module2_admin, "module2_mesures": body.module2_mesures,
         "updated_at": datetime.now(timezone.utc).isoformat()}})
@@ -627,6 +634,9 @@ async def finding_to_mesure(dossier_id: str, finding_id: str,
         "precisions_oqlf": "", "propositions_oqlf": "",
         "echeance": ech, "statut_mise_en_oeuvre": "a_faire",
         "source": "analyse",
+        "external_legal_object_id": None, "external_source_type": None,
+        "external_version_id": None, "external_citation": None,
+        "reference_date": None, "retrieved_at": None,
     }
     mesures = d.get("module2_mesures", []) or []
     mesures.append(mesure)
@@ -675,6 +685,71 @@ async def courriel_draft(dossier_id: str, module: int = Query(1),
             "pdf_path": pdf_path, "pdf_filename": pdf_filename}
 
 
+# ---------------------------------------------------------------- notifications / rappels
+async def generate_reminders():
+    dossiers = await db.dossiers.find({}).to_list(5000)
+    created = 0
+    for d in dossiers:
+        de = enrich_dossier(dict(d))
+        jours = de.get("jours_restants_module1")
+        ech = de.get("echeance_module1")
+        if jours is None:
+            continue
+        if 0 <= jours <= 7:
+            typ, message = "j7", f"Échéance imminente : l'analyse linguistique de « {d.get('nom_entreprise','')} » est due dans {jours} jour(s) ({ech})."
+        elif 7 < jours <= 30:
+            typ, message = "j30", f"Rappel : l'analyse linguistique de « {d.get('nom_entreprise','')} » est due dans {jours} jours ({ech})."
+        elif jours < 0:
+            typ, message = "retard", f"En retard : l'analyse linguistique de « {d.get('nom_entreprise','')} » était due le {ech}."
+        else:
+            continue
+        if await db.notifications.find_one({"dossier_id": d["id"], "type": typ}):
+            continue
+        try:
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()), "owner_id": d["owner_id"], "dossier_id": d["id"],
+                "dossier_nom": d.get("nom_entreprise", ""), "type": typ, "jours": jours,
+                "echeance": ech, "message": message, "read": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            created += 1
+        except DuplicateKeyError:
+            continue
+    logger.info(f"Rappels générés : {created}")
+    return created
+
+
+@api.get("/notifications")
+async def list_notifications(user: dict = Depends(get_current_user)):
+    rows = await db.notifications.find({"owner_id": user["id"]}, {"_id": 0}).to_list(200)
+    rows.sort(key=lambda r: r["created_at"], reverse=True)
+    return rows[:50]
+
+
+@api.post("/notifications/{nid}/read")
+async def read_notification(nid: str, user: dict = Depends(get_current_user)):
+    await db.notifications.update_one({"id": nid, "owner_id": user["id"]}, {"$set": {"read": True}})
+    return {"ok": True}
+
+
+@api.post("/notifications/read-all")
+async def read_all_notifications(user: dict = Depends(get_current_user)):
+    await db.notifications.update_many({"owner_id": user["id"]}, {"$set": {"read": True}})
+    return {"ok": True}
+
+
+@api.post("/cron/reminders")
+async def cron_reminders(request: Request, background_tasks: BackgroundTasks):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else ""
+    if not secret or not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="Non autorisé")
+    background_tasks.add_task(generate_reminders)
+    return {"status": "accepted"}
+
+
 # ---------------------------------------------------------------- startup
 @app.on_event("startup")
 async def startup():
@@ -684,6 +759,8 @@ async def startup():
     await db.audit_logs.create_index("dossier_id")
     await db.login_attempts.create_index("identifier", unique=True)
     await db.documents.create_index("dossier_id")
+    await db.notifications.create_index([("dossier_id", 1), ("type", 1)], unique=True)
+    await db.notifications.create_index("owner_id")
     try:
         init_storage()
         logger.info("Stockage d'objets initialisé.")

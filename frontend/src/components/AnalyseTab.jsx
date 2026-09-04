@@ -25,6 +25,20 @@ function kindIcon(kind) {
   return FileText;
 }
 
+function BlobThumb({ docId }) {
+  const [src, setSrc] = useState(null);
+  useEffect(() => {
+    let url;
+    api.get(`/documents/${docId}/download`, { responseType: "blob" })
+      .then(({ data }) => { url = URL.createObjectURL(data); setSrc(url); })
+      .catch(() => {});
+    return () => { if (url) URL.revokeObjectURL(url); };
+  }, [docId]);
+  return src
+    ? <img src={src} alt="" className="h-9 w-9 rounded-lg object-cover border border-slate-200 shrink-0" data-testid={`document-thumb-${docId}`} />
+    : <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0"><ImageIcon size={18} className="text-slate-400" /></div>;
+}
+
 function DocumentRow({ doc, onAnalyze, analyzing, onDelete, failed }) {
   const Icon = kindIcon(doc.kind);
   const ana = doc.analysis;
@@ -32,7 +46,9 @@ function DocumentRow({ doc, onAnalyze, analyzing, onDelete, failed }) {
     <div className="rounded-xl border border-slate-200 bg-white p-4" data-testid={`document-row-${doc.id}`}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="h-9 w-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0"><Icon size={18} /></div>
+          {doc.kind === "image"
+            ? <BlobThumb docId={doc.id} />
+            : <div className="h-9 w-9 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0"><Icon size={18} /></div>}
           <div className="min-w-0">
             <div className="text-sm font-medium text-slate-800 truncate max-w-[360px]">{doc.original_filename}</div>
             <div className="text-[11px] text-slate-400">{new Date(doc.created_at).toLocaleString("fr-CA")}{ana ? ` · ${ana.elements?.length || 0} élément(s)` : ""}</div>

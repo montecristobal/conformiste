@@ -144,6 +144,10 @@ THEMES_LEGAUX = [
 # Tant que texte_loi_valide == False, le moteur d'analyse reste au niveau « à valider ».
 for _t in THEMES_LEGAUX:
     _t.setdefault("texte_loi_valide", False)
+    # Champs passifs de référence externe (préparation CLF-Expert) — vides pour l'instant.
+    for _f in ("external_legal_object_id", "external_source_type", "external_version_id",
+               "external_citation", "reference_date", "retrieved_at"):
+        _t.setdefault(_f, None)
 
 
 # Étapes du cycle de vie d'un dossier (pipeline légal)

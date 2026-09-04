@@ -47,6 +47,13 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 
 ## Hors périmètre / backlog
 
+## Implémenté (2026-06 — itération 3)
+- Rappels d'échéance automatiques J-30 / J-7 (+ retard) : tâche planifiée quotidienne (.emergent/crons.yml → /api/v1/cron/reminders, auth Bearer WEBHOOK_CRON_SECRET), notifications par utilisateur, cloche + panneau dans l'en-tête.
+- Vignettes des photos téléversées dans la liste des documents (onglet Analyse).
+- Préparation passive CLF-Expert : versionnage API `/api/v1`, champs externes nullables (external_*, reference_date, retrieved_at) sur thèmes et mesures, module inerte `clf_expert_client.py` (aucun appel réseau).
+- Robustesse : retry/backoff sur le stockage d'objets (5xx transitoires), insertion de notifications protégée contre les doublons concurrents.
+- Tests : 87/87 pytest + parcours frontend validés (rapport iteration_5).
+
 ## Prochaines tâches (mis à jour)
 - Faire basculer des thèmes à `texte_loi_valide=true` (au cas par cas, après validation du texte légal) pour activer les qualifications de niveau 2.
 - Rappels d'échéance automatiques J-30 / J-7.

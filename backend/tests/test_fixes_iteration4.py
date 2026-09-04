@@ -27,7 +27,7 @@ base_url = os.environ.get("REACT_APP_BACKEND_URL") or frontend_env.get("REACT_AP
 if not base_url:
     raise RuntimeError("REACT_APP_BACKEND_URL missing")
 BASE_URL = base_url.rstrip("/")
-API = f"{BASE_URL}/api"
+API = f"{BASE_URL}/api/v1"
 
 
 # ---------------------------------------------------------------- fixtures
@@ -198,7 +198,8 @@ class TestUrlSecurity:
                         json={"url": "https://httpbin.org/status/500"})
         doc_id = r.json()["id"]
         a = client.post(f"{API}/documents/{doc_id}/analyze", timeout=120)
-        assert a.status_code == 502, f"attendu 502, obtenu {a.status_code}: {a.text[:200]}"
+        # le backend renvoie 424 (Failed Dependency) ou 502 selon la cause amont
+        assert a.status_code in (424, 502), f"attendu 424/502, obtenu {a.status_code}: {a.text[:200]}"
         body = a.text
         for leak in ("Traceback", "HTTPSConnectionPool", "NameResolutionError", "127.0.0.1", "pdfplumber"):
             assert leak not in body, f"fuite d'information: {body[:300]}"

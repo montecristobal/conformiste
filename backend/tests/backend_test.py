@@ -15,7 +15,7 @@ base_url = os.environ.get("REACT_APP_BACKEND_URL") or frontend_env.get("REACT_AP
 if not base_url:
     raise RuntimeError("REACT_APP_BACKEND_URL missing")
 BASE_URL = base_url.rstrip("/")
-API = f"{BASE_URL}/api"
+API = f"{BASE_URL}/api/v1"
 
 
 # ---------------------------------------------------------------- fixtures

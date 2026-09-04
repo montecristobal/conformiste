@@ -1,6 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Notifications } from "@/components/Notifications";
 import { LayoutDashboard, Users, LogOut, FileCheck2, ShieldCheck } from "lucide-react";
 
 export function Layout({ children, activeClientName }) {
@@ -47,6 +48,7 @@ export function Layout({ children, activeClientName }) {
               </span>
             )}
             <span className="hidden sm:block text-sm text-blue-100">{user?.name}</span>
+            <Notifications />
             <Button variant="ghost" size="sm" data-testid="logout-button"
               onClick={async () => { await logout(); navigate("/"); }}
               className="text-blue-100 hover:text-white hover:bg-white/10">

@@ -1,5 +1,6 @@
 """Emergent-managed object storage helpers (voir playbook object storage)."""
 import os
+import time
 import requests
 
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
@@ -28,29 +29,35 @@ def init_storage(force: bool = False):
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
     key = init_storage()
-    resp = requests.put(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key, "Content-Type": content_type},
-        data=data, timeout=120,
-    )
-    if resp.status_code == 404:
-        key = init_storage(force=True)
+    for attempt in range(3):
         resp = requests.put(
             f"{STORAGE_URL}/objects/{path}",
             headers={"X-Storage-Key": key, "Content-Type": content_type},
             data=data, timeout=120,
         )
+        if resp.status_code == 404:
+            key = init_storage(force=True)
+            continue
+        if resp.status_code in (502, 503) and attempt < 2:
+            time.sleep(0.6 * (attempt + 1))
+            continue
+        break
     resp.raise_for_status()
     return resp.json()
 
 
 def get_object(path: str):
     key = init_storage()
-    resp = requests.get(f"{STORAGE_URL}/objects/{path}",
-                        headers={"X-Storage-Key": key}, timeout=60)
-    if resp.status_code == 404:
-        key = init_storage(force=True)
+    for attempt in range(3):
         resp = requests.get(f"{STORAGE_URL}/objects/{path}",
                             headers={"X-Storage-Key": key}, timeout=60)
+        if resp.status_code == 404:
+            key = init_storage(force=True)
+            resp = requests.get(f"{STORAGE_URL}/objects/{path}",
+                                headers={"X-Storage-Key": key}, timeout=60)
+        if resp.status_code in (502, 503) and attempt < 2:
+            time.sleep(0.6 * (attempt + 1))
+            continue
+        break
     resp.raise_for_status()
     return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
