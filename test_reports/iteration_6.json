@@ -1,0 +1,52 @@
+{
+  "summary": "Itération 6 (both) — Pré-remplissage REQ. Backend: 11/11 pytest OK (/app/backend/tests/test_req_lookup.py) — GET /api/v1/req/lookup renvoie le dossier REQ complet (source, neq, nom_entreprise, autres_noms, forme_juridique='Immatriculée', etat, dates ISO cohérentes, regime_constitution, adresse_domicile/ville/code_postal, activites_economiques[] avec code_cae 6 chiffres, administrateurs[] avec 1er = Président, etablissements[] avec un seul principal, nombre_etablissements == len(etablissements), nombre_employes_estime int>0), pas de _id, déterminisme confirmé (3 appels identiques pour 1140000999), variation confirmée sur 5 NEQ, trim du NEQ, 401 sans token et avec token invalide, 422 si neq manquant/vide. Persistance vérifiée: PATCH /api/v1/dossiers/{id}/inscription avec req_data puis GET → données identiques. Frontend (Playwright 1920x1080, dossier 2a62630c-ef53-4938-80d9-9879858ae5fc / NEQ 1140000999): login OK, étape 'inscription' active par défaut, entrevue-inscription affichée, AUTO-FETCH REQ déclenché à l'ouverture → req-panel affiché avec toutes les données, et les 7 champs mappés (neq, nom_entreprise, adresse, activites, nb_etablissements, nb_employes_quebec, personne_ressource) remplis. Bouton req-fetch-btn avec un NEQ différent (1173456789): récupération OK, ÉCRASEMENT des champs confirmé, toast 'Données récupérées au Registraire'. entrevue-save: toast 'Entrevue enregistrée' + persistance après reload (req-panel toujours affiché). Aucune réponse API >=400, aucune erreur console. UN BUG BLOQUANT trouvé: perte de focus après 1 caractère sur tous les champs rendus par le composant inline F (saisie manuelle impossible).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/req/lookup", "issue": "Aucune validation du format du NEQ: 'ABC' (ou toute chaîne) retourne 200 avec un faux dossier REQ complet. En production le NEQ est ~10 chiffres → ajouter regex=^\\d{9,10}$ sur le Query et retourner 404/422 pour un NEQ inconnu/invalide, sinon l'UI pré-remplit des données inventées à partir d'une saisie erronée."},
+      {"endpoint": "GET /api/v1/req/lookup", "issue": "Le champ regime_constitution est toujours 'Loi sur les sociétés par actions (Québec)' et statut='Immatriculée'/etat='En vigueur' même quand forme_juridique = 'Personne physique exploitant une entreprise individuelle' ou 'Coopérative' → incohérence visible dans le panneau REQ. Aucun cas 'Radiée d'office' pour tester le chemin non conforme."},
+      {"endpoint": "GET /api/v1/req/lookup", "issue": "activites_economiques peut contenir moins d'éléments que prévu (déduplication par 'continue' sans retirage) — non bloquant, mais la variété annoncée (1 à 3) n'est pas garantie."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DossierDetail — EntrevueInscription (const F = ({k,label,type}) => ...)", "issue": "BLOQUANT: le composant F est déclaré À L'INTÉRIEUR de EntrevueInscription (ligne 113), donc son type change à chaque render; React démonte/remonte l'Input à chaque frappe → perte de focus après 1 caractère. Mesuré: taper 'qa@test.com' dans entrevue-courriel ne laisse que 'q'; 'Marie Test' → 'M'; '5145551234' → '5'; document.activeElement devient null. Tous les champs concernés: entrevue-nb_employes_quebec, entrevue-nb_etablissements, entrevue-nom_entreprise, entrevue-personne_ressource, entrevue-courriel, entrevue-telephone, entrevue-adresse. Les champs NON rendus par F (entrevue-neq, entrevue-activites) fonctionnent normalement (saisie complète OK). Correctif: sortir F du composant (module-level, en passant value/onChange en props) ou remplacer par du JSX inline.", "selector": "[data-testid='entrevue-courriel'], [data-testid='entrevue-personne_ressource'], [data-testid='entrevue-adresse']", "priority": "CRITICAL"},
+      {"component": "EntrevueInscription — auto-fetch", "issue": "L'auto-récupération émet 2 appels GET /req/lookup identiques à l'ouverture (double invocation du useEffect sous React.StrictMode). Inoffensif en démo mais doublera les appels vers la vraie API REQ en production → ajouter un garde (ref/AbortController).", "selector": "[data-testid='req-panel']", "priority": "LOW"},
+      {"component": "EntrevueInscription — auto-fetch", "issue": "L'auto-fetch affiche le toast succès 'Données récupérées au Registraire' même en mode automatique (paramètre auto ignoré pour le toast) et, si le NEQ du dossier a été récupéré, écrase silencieusement les champs déjà saisis sans les persister: l'utilisateur doit cliquer 'Enregistrer l'entrevue' sinon les données REQ sont perdues au rechargement. Un indicateur 'non enregistré' serait utile.", "selector": "[data-testid='entrevue-save']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dossier — Étape & aperçu", "issues": ["Le champ 'Date limite légale' utilise le date picker natif du navigateur (mm/dd/yyyy, format US) au lieu du composant Calendar shadcn — incohérent avec une app en français (attendu jj/mm/aaaa).", "Le panneau REQ (texte 10-12px, slate-500 sur emerald-50) est dense; lisible mais le contraste des libellés est faible.", "Base de préprod polluée: 67 dossiers 'TEST_*' quasi identiques avec le même NEQ 1140000999 — nettoyage recommandé."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_req_lookup.py",
+    "/app/backend/tests/reset_inscription.py",
+    "/app/test_reports/pytest/iteration6_req.xml"
+  ],
+  "action_items": [
+    "CRITIQUE: sortir le composant F de EntrevueInscription (DossierDetail.jsx ligne 113) — actuellement la saisie manuelle est impossible (1 caractère puis perte de focus) sur 7 champs de l'entrevue.",
+    "Valider le format du NEQ côté backend (Query regex ^\\d{9,10}$) et retourner 422/404 au lieu d'un dossier REQ inventé pour un NEQ non numérique.",
+    "Éviter le double appel /req/lookup à l'ouverture (garde ref/AbortController dans le useEffect).",
+    "Ne pas afficher le toast succès lors de la récupération automatique, ou indiquer 'modifications non enregistrées' après un écrasement automatique.",
+    "Cohérence des données simulées: regime_constitution/statut selon forme_juridique; prévoir un cas 'Radiée' pour tester le chemin non conforme.",
+    "Remplacer l'input date natif (mm/dd/yyyy) par le Calendar shadcn en format québécois."
+  ],
+  "critical_code_review_comments": [
+    "DossierDetail.jsx:113 — définition d'un composant React à l'intérieur du rendu d'un autre composant: anti-pattern qui remonte les inputs à chaque frappe (bug de focus confirmé). À hoister au niveau module.",
+    "server.py — l'import `from req_lookup import simulate_req` est fait à l'intérieur du handler; le déplacer en haut du module (import unique, échec rapide).",
+    "req_lookup.simulate_req n'a aucune notion d'échec/NEQ inconnu: prévoir dès maintenant un retour None + 404 pour faciliter le branchement sur la vraie source REQ.",
+    "mapReqToForm écrase inconditionnellement adresse/activites/nb_* sans conserver les valeurs saisies (choix produit assumé), mais aucune trace de l'écrasement dans le journal d'audit du dossier — envisager une entrée d'audit 'Pré-remplissage REQ'."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_req_lookup.py",
+    "/app/backend/tests/reset_inscription.py"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "80% (4/5 scénarios; saisie manuelle des champs cassée)"},
+  "seed_data_creation": "Aucun nouveau dossier créé. inscription_data du dossier 2a62630c-ef53-4938-80d9-9879858ae5fc a été réinitialisé à {neq: 1140000999} pour tester l'auto-fetch, puis contient maintenant les données REQ du NEQ 1173456789 (+ activites='Secteur test', personne_ressource='M', courriel='q', telephone='5' laissés par le test de focus).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO admin)",
+  "context_for_next_testing_agent": "Route dossier = /dossier/:id (SINGULIER), pas /dossiers/:id. L'auto-fetch REQ ne se déclenche QUE si inscription_data.req_data est absent: exécuter `python /app/backend/tests/reset_inscription.py` (login /api/v1/auth/login) pour remettre inscription_data={neq} avant de retester l'auto-fetch. Login backend: POST /api/v1/auth/login → access_token. Suites: test_req_lookup.py (REQ), test_iteration5.py, test_fixes_iteration4.py, test_analysis_engine.py, backend_test.py. Après correctif du composant F, revérifier la saisie multi-caractères sur entrevue-courriel/telephone/personne_ressource/adresse puis l'enregistrement.",
+  "rca_of_the_issue": "Perte de focus: `const F = ({k,label,type}) => (...)` est défini dans le corps de EntrevueInscription. À chaque setD (donc à chaque frappe), une nouvelle référence de fonction est créée → React considère un type d'élément différent, démonte l'ancien <Input> et en monte un nouveau, l'élément focalisé disparaît du DOM (document.activeElement=null) et les frappes suivantes sont perdues. Reproduction: ouvrir /dossier/2a62630c-ef53-4938-80d9-9879858ae5fc, cliquer sur [data-testid='entrevue-courriel'] et taper 'qa@test.com' → seul 'q' est conservé. Correctif: déclarer F au niveau module (ou inliner le JSX) en passant value et onChange en props."
+}

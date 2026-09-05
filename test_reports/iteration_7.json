@@ -1,0 +1,32 @@
+{
+  "summary": "Itération 7 (frontend only) — Vérification de la régression de focus + REQ. RÉGRESSION CORRIGÉE: EntrevueField est bien hoisté au niveau module (DossierDetail.jsx:22) et la saisie manuelle multi-caractères fonctionne sur les 7 champs testés — entrevue-courriel ('qa@test.com'), entrevue-telephone ('5145551234'), entrevue-personne_ressource ('Marie Tremblay'), entrevue-adresse ('123 rue Test, Montréal'), entrevue-nom_entreprise ('Entreprise QA Focus inc.'), entrevue-nb_employes_quebec ('137'), entrevue-nb_etablissements ('4') — valeur complète conservée et document.activeElement reste sur le champ après la frappe (7/7 PASS). Auto-fetch REQ: après reset de inscription_data={neq:'1173456789'}, l'ouverture de /dossier/2a62630c-... affiche req-panel automatiquement, remplit les 7 champs mappés, N'AFFICHE AUCUN toast succès et n'émet QU'UN SEUL GET /api/v1/req/lookup (garde useRef efficace). Bouton req-fetch-btn: NEQ valide 1140000999 → écrasement des champs + toast 'Données récupérées au Registraire'; NEQ invalides 'ABC' et '12' → backend 422 + toast 'Récupération impossible (NEQ à 9-10 chiffres)'. Enregistrement: entrevue-save → toast 'Entrevue enregistrée', et après reload les 7 valeurs saisies + req_panel sont persistées (7/7 PASS). Aucune erreur console autre que les 422 attendus des NEQ invalides.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EntrevueInscription — auto-fetch", "issue": "Le pré-remplissage automatique modifie l'état local sans le persister et sans indicateur 'modifications non enregistrées': si l'utilisateur quitte le dossier sans cliquer 'Enregistrer l'entrevue', les données REQ récupérées automatiquement sont perdues et l'auto-fetch se rejoue au prochain chargement. (Reporté de l'itération 6, toujours présent.)", "selector": "[data-testid='entrevue-save']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dossier — Étape & aperçu", "issues": ["'Date limite légale' utilise toujours l'input date natif au format US (mm/dd/yyyy) au lieu du Calendar shadcn en format québécois (jj/mm/aaaa) — incohérent avec une app OQLF/loi 96 en français.", "Panneau REQ dense (texte 10-12px, libellés slate-500 sur emerald-50/50) — contraste des libellés faible.", "Base de préprod polluée par des dossiers 'TEST_*' (dossier testé s'appelle 'TEST_Analyse Inc.') — nettoyage recommandé avant démo."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/reset_inscription.py", "/app/test_reports/iteration_6.json"],
+  "action_items": [
+    "Optionnel (MEDIUM): persister automatiquement (ou marquer 'non enregistré') le résultat de l'auto-fetch REQ pour éviter la perte des données au changement de page.",
+    "Optionnel (LOW/design): remplacer l'input date natif par le Calendar shadcn (format jj/mm/aaaa).",
+    "Optionnel: cohérence des données simulées REQ (regime_constitution/statut vs forme_juridique) et cas 'Radiée' — déjà signalé en itération 6, non bloquant."
+  ],
+  "critical_code_review_comments": [
+    "Correctif validé: EntrevueField est désormais un composant de niveau module recevant d et set en props — plus de remontage à chaque frappe.",
+    "fetchReq est appelé dans le useEffect sans être dans les deps (eslint-disable) mais la garde autoFetched.current empêche les doubles appels sous StrictMode — comportement confirmé par mesure (1 seul GET).",
+    "Le message d'erreur du toast est générique pour tous les échecs (réseau/401/422); afficher le detail renvoyé par l'API (422 'NEQ invalide : 9 ou 10 chiffres attendus.') serait plus précis."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "non testé (frontend only); GET /req/lookup validé indirectement: 200 sur NEQ valides, 422 sur 'ABC' et '12'", "frontend": "100% (4/4 scénarios demandés; 14/14 assertions saisie+persistance)"},
+  "seed_data_creation": "inscription_data du dossier 2a62630c-ef53-4938-80d9-9879858ae5fc réinitialisé via reset_inscription.py puis rempli par les tests (courriel qa@test.com, telephone 5145551234, personne_ressource Marie Tremblay, adresse '123 rue Test, Montréal', nom_entreprise 'Entreprise QA Focus inc.', 137 employés, 4 établissements) + req_data du NEQ 1140000999 (non enregistré en fin de test).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO admin)",
+  "context_for_next_testing_agent": "Route /dossier/:id (singulier). L'auto-fetch ne se déclenche que si inscription_data.req_data est absent → lancer `python /app/backend/tests/reset_inscription.py`. Toasts sonner: sélecteur '[data-sonner-toast], li[role=\"status\"]'. Le bug de focus (itération 6) est corrigé et vérifié. Restent uniquement des points MEDIUM/LOW (persistance auto-fetch, date picker natif, contraste du panneau REQ).",
+  "rca_of_the_issue": "Aucun bug bloquant restant. Le bug de focus provenait du composant F défini dans le corps de EntrevueInscription (nouveau type à chaque render → remontage de l'Input); le hoisting au niveau module (EntrevueField) le résout, confirmé par la saisie complète et activeElement stable."
+}

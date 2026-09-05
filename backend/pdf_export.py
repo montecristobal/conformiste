@@ -71,6 +71,10 @@ def _footer(canvas, doc):
     canvas.restoreState()
 
 
+def _esc(v):
+    return (str(v).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
 def _fmt(v):
     if isinstance(v, list):
         if v and isinstance(v[0], dict):
@@ -140,6 +144,118 @@ def build_inscription_pdf(dossier):
     story.append(Paragraph(
         "Document produit à partir de l'entrevue d'inscription. À réviser puis transmettre "
         "à l'Office québécois de la langue française.", ss["Label"]))
+    doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+    buf.seek(0)
+    return buf
+
+
+OQLF_LAYOUT = [
+    ("Informations générales", [
+        ("prise_connaissance", "Comment avez-vous pris connaissance de l'obligation de vous inscrire ?"),
+        ("prise_connaissance_autre", "Autres (précisez)"),
+    ]),
+    ("1. Renseignements sur l'identité de l'entreprise", [
+        ("nom_entreprise", "Nom de l'entreprise (tel qu'immatriculé au registre du Québec)"),
+        ("neq", "Numéro d'entreprise du Québec (NEQ)"),
+        ("autres_noms", "Autres noms utilisés au Québec"),
+        ("site_web", "Site Web"),
+        ("etab_principal_adresse", "Principal établissement — numéro, rue, local ou bureau"),
+        ("etab_principal_ville_cp", "Ville et code postal"),
+    ]),
+    ("2. Responsable de la direction au Québec", [
+        ("resp_civilite", "Civilité"),
+        ("resp_prenom", "Prénom"),
+        ("resp_nom", "Nom"),
+        ("resp_titre", "Titre ou fonction"),
+        ("resp_courriel", "Courriel"),
+        ("resp_telephone", "Téléphone"),
+        ("resp_poste", "Poste"),
+        ("resp_telecopieur", "Télécopieur"),
+        ("resp_adresse", "Adresse — numéro, rue, local ou bureau"),
+        ("resp_ville_cp", "Ville et code postal"),
+    ]),
+    ("3. Personne-ressource auprès de l'Office (si différente de la section 2)", [
+        ("pr_differente", "Une personne-ressource différente du responsable ?"),
+        ("pr_civilite", "Civilité"),
+        ("pr_prenom", "Prénom"),
+        ("pr_nom", "Nom"),
+        ("pr_titre", "Titre ou fonction"),
+        ("pr_courriel", "Courriel"),
+        ("pr_telephone", "Téléphone"),
+        ("pr_poste", "Poste"),
+        ("pr_telecopieur", "Télécopieur"),
+        ("pr_adresse", "Adresse — numéro, rue, local ou bureau"),
+        ("pr_ville_cp", "Ville et code postal"),
+    ]),
+    ("4. Activités commerciales de l'entreprise au Québec", [
+        ("activites_principales", "4.1 Quelles sont les principales activités de l'entreprise ?"),
+        ("activites_economiques", "4.2 Activités économiques (telles qu'au REQ)"),
+        ("codes_cae", "Codes d'activités économiques (CAE)"),
+    ]),
+    ("5. Structure de l'entreprise au Québec", [
+        ("deja_50_plus", "5.1 A déjà employé 50 personnes ou plus durant 6 mois au Québec ?"),
+        ("nb_employes_actuel", "5.2 Nombre de personnes employées actuellement (tous statuts)"),
+        ("nb_etablissements", "5.3 Nombre d'établissements au Québec"),
+        ("etablissements_villes", "5.3 Ville(s) où ils sont situés"),
+        ("siege_au_quebec", "5.4 Le siège social de l'entreprise est-il au Québec ?"),
+        ("siege_lieu", "5.4 Si non, lieu (ville et pays)"),
+        ("gere_admin", "5.5 Gère-t-elle elle-même ses fonctions administratives au Québec ?"),
+        ("gere_admin_precision", "5.5 Si non ou en partie, expliquez"),
+        ("centre_recherche", "5.6 A-t-elle un centre de recherche au Québec ?"),
+        ("centre_recherche_domaines", "5.6 Si oui, domaines de recherche"),
+        ("etab_hors_quebec", "5.7 Possède-t-elle des établissements à l'extérieur du Québec ?"),
+    ]),
+    ("6. Attestation du ou de la responsable de la direction au Québec", [
+        ("att_prenom", "Prénom"),
+        ("att_nom", "Nom"),
+        ("att_titre", "Titre ou fonction"),
+        ("att_date", "Date"),
+    ]),
+]
+
+
+def build_oqlf_pdf(dossier):
+    data = dossier.get("oqlf_data", {}) or {}
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, topMargin=1.6 * cm,
+                            bottomMargin=1.6 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
+    ss = _styles()
+    story = []
+    _header(story, ss, "Formulaire d'inscription à l'Office",
+            f"Entreprise : <b>{_esc(data.get('nom_entreprise') or dossier.get('nom_entreprise', '—'))}</b> "
+            f"— NEQ : {_esc(data.get('neq') or dossier.get('neq', '—'))}")
+
+    def oqlf_table(fields):
+        rows = []
+        for fid, label in fields:
+            v = data.get(fid)
+            val = _fmt(v) if v not in (None, "", []) else "—"
+            rows.append([Paragraph(_esc(label), ss["Label"]),
+                         Paragraph(_esc(val), ss["Body"])])
+        t = Table(rows, colWidths=[8 * cm, 8.5 * cm])
+        t.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#E2E8F0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (0, -1), 10),
+        ]))
+        return t
+
+    for titre, fields in OQLF_LAYOUT:
+        story.append(Paragraph(titre, ss["H2"]))
+        story.append(oqlf_table(fields))
+        story.append(Spacer(1, 6))
+
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(
+        "J'atteste que les renseignements contenus dans ce document sont exacts et représentent "
+        "la situation actuelle de l'entreprise.", ss["Legal"]))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        "Document produit à partir du registre des entreprises (REQ) et de l'entrevue d'inscription. "
+        "À réviser par le ou la responsable, puis à transmettre à l'Office québécois de la langue française.",
+        ss["Label"]))
     doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
     buf.seek(0)
     return buf

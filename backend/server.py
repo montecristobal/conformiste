@@ -6,6 +6,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 import logging
+import re
 import uuid
 import base64
 import hmac
@@ -26,6 +27,7 @@ from pydantic import BaseModel, EmailStr, Field
 from dateutil.relativedelta import relativedelta
 
 from catalogue import THEMES_LEGAUX, PIPELINE_STAGES
+from req_lookup import simulate_req
 from pdf_export import build_module1_pdf, build_module2_pdf
 from storage import put_object, get_object, init_storage, APP_NAME, MIME_TYPES
 import analysis
@@ -120,6 +122,10 @@ class Module1In(BaseModel):
 
 class InscriptionIn(BaseModel):
     inscription_data: Dict[str, Any] = {}
+
+
+class OqlfIn(BaseModel):
+    oqlf_data: Dict[str, Any] = {}
 
 
 class Module2In(BaseModel):
@@ -290,6 +296,15 @@ async def get_stages(user: dict = Depends(get_current_user)):
     return PIPELINE_STAGES
 
 
+@api.get("/req/lookup")
+async def req_lookup(neq: str = Query(..., min_length=1),
+                     user: dict = Depends(get_current_user)):
+    neq = neq.strip()
+    if not re.fullmatch(r"\d{9,10}", neq):
+        raise HTTPException(status_code=422, detail="NEQ invalide : 9 ou 10 chiffres attendus.")
+    return simulate_req(neq)
+
+
 # ---------------------------------------------------------------- clients (PRO)
 @api.get("/clients")
 async def list_clients(user: dict = Depends(get_current_user)):
@@ -408,6 +423,37 @@ async def save_inscription(dossier_id: str, body: InscriptionIn,
     await db.dossiers.update_one({"id": dossier_id}, {"$set": upd})
     await audit(dossier_id, user, "Entrevue d'inscription enregistrée")
     return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
+@api.patch("/dossiers/{dossier_id}/oqlf")
+async def save_oqlf(dossier_id: str, body: OqlfIn,
+                    user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    upd = {"oqlf_data": body.oqlf_data,
+           "updated_at": datetime.now(timezone.utc).isoformat()}
+    emp = body.oqlf_data.get("nb_employes_actuel")
+    etab = body.oqlf_data.get("nb_etablissements")
+    if isinstance(emp, (int, float)):
+        upd["nb_employes_quebec"] = int(emp)
+    if isinstance(etab, (int, float)):
+        upd["nb_etablissements"] = int(etab)
+    neq = body.oqlf_data.get("neq")
+    if isinstance(neq, str) and neq:
+        upd["neq"] = neq
+    await db.dossiers.update_one({"id": dossier_id}, {"$set": upd})
+    await audit(dossier_id, user, "Formulaire d'inscription OQLF enregistré")
+    return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
+@api.get("/dossiers/{dossier_id}/export/oqlf")
+async def export_oqlf(dossier_id: str, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    await audit(dossier_id, user, "Export PDF — Formulaire d'inscription OQLF")
+    from pdf_export import build_oqlf_pdf
+    buf = build_oqlf_pdf(d)
+    fn = f"formulaire_inscription_oqlf_{d.get('neq') or dossier_id}.pdf"
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
 
 @api.get("/dossiers/{dossier_id}/export/inscription")

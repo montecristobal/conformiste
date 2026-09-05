@@ -83,3 +83,18 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 1. Rappels d'échéance J-30 / J-7 (visuels + éventuel courriel Resend).
 2. Téléversement réel des pièces jointes (object storage).
 3. Paiements Stripe pour activer les plans PRO/SOLO.
+
+## Implémenté (2026-06 — itération 6, Pré-remplissage REQ + Formulaire OQLF)
+- Pré-remplissage REQ (mode DÉMO) : endpoint `GET /api/v1/req/lookup?neq=` (validation NEQ ^\d{9,10}$, 422 sinon) renvoyant un dossier d'entreprise réaliste et déterministe (`req_lookup.simulate_req`) imitant le Registraire des entreprises du Québec. À remplacer par la vraie source (registre public temps réel ou données ouvertes Données Québec) en production.
+- Formulaire d'inscription OQLF complet (6 sections, fidèle au formulaire officiel) remplaçant l'ancienne « entrevue » : composant `OqlfInscriptionForm.jsx` à l'étape Inscription.
+  - Récupération automatique des données REQ à l'ouverture si un NEQ est présent (garde useRef, pas de double appel, écrasement des champs REQ) ; bouton manuel « Pré-remplir depuis le REQ ».
+  - Champs REQ pré-remplis (nom, NEQ, autres noms, adresse principal établissement, activités + codes CAE, nb établissements, responsable, attestation) marqués « REQ » ; champs manquants posés en questions d'entrevue marquées « à compléter » avec compteur de questions restantes.
+  - Champs conditionnels (prise_connaissance=Autres, personne-ressource différente, siège hors Québec, gestion admin partielle, centre de recherche).
+  - Export PDF fidèle : `GET /api/v1/dossiers/{id}/export/oqlf` (`build_oqlf_pdf`, libellés qui s'enroulent, champs vides = « — »). Enregistrement via `PATCH /api/v1/dossiers/{id}/oqlf`.
+- Vérifié : backend (save 200, req/lookup 200/422/401, export PDF 200 rendu visuel OK sur 3 pages) ; frontend testing agent 8/8 scénarios (pré-remplissage 11/11, saisie sans perte de focus 4/4, 7/7 selects, 7/7 conditionnels, persistance, PDF 200). Correction d'un bug de perte de focus (composant de champ hoisté au niveau module).
+
+## Backlog / améliorations optionnelles (post-itération 6)
+- Brancher la vraie source REQ (temps réel ou données ouvertes) à la place de la démo simulée.
+- UX : marquer « modifications non enregistrées » après un auto-fetch (sinon données REQ perdues si l'utilisateur quitte sans enregistrer).
+- Design : remplacer les inputs date natifs (att_date, « date limite légale ») par le Calendar shadcn au format jj/mm/aaaa ; contraste du panneau REQ.
+- Paiements Stripe (PRO/SOLO) — toujours P0 en attente.

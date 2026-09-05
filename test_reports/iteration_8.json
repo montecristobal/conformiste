@@ -1,0 +1,37 @@
+{
+  "summary": "Itération 8 (frontend only) — Validation complète du nouveau formulaire OQLF (6 sections) remplaçant l'ancienne EntrevueInscription. 8/8 scénarios PASS sur le dossier 2a62630c-...-8ae5fc (NEQ 1140000999) après reset de oqlf_data={neq:'1140000999'}. (1) Ouverture /dossier/:id → oqlf-inscription-form rendu; auto-fetch REQ déclenché → 1 seul GET /api/v1/req/lookup (StrictMode guard OK), req-panel visible, et les 11 champs REQ demandés sont pré-remplis (oqlf-nom_entreprise='Groupe Lumina s.e.n.c.', oqlf-neq-lookup='1140000999', oqlf-etab_principal_adresse, oqlf-activites_principales, oqlf-codes_cae='453998, 445110, 236220', oqlf-nb_etablissements='2', oqlf-resp_prenom='Luc', oqlf-resp_nom='Ouellet', oqlf-resp_titre='Président', oqlf-att_prenom='Luc', oqlf-att_nom='Ouellet'). (2) Bannière oqlf-remaining-banner affiche oqlf-remaining-count=15 au départ, tombe à 12 après remplissage des champs entrevue (site_web/resp_courriel/resp_telephone étaient vides + nb_employes_actuel déjà pré-rempli depuis REQ → -3 attendu). (3) Saisie multi-caractères SANS perte de focus: 4/4 champs (oqlf-site_web='https://exemple.com', oqlf-resp_courriel='nadia@ex.com', oqlf-resp_telephone='514-375-3050', oqlf-nb_employes_actuel='38') — valeur complète conservée ET document.activeElement reste sur le champ. (4) Selects 7/7 OK (prise_connaissance, resp_civilite, deja_50_plus, siege_au_quebec, gere_admin, centre_recherche, etab_hors_quebec). (5) Champs conditionnels 7/7: 'Autres'→prise_connaissance_autre; 'Non' siege→siege_lieu; 'Non ou en partie' gere_admin→gere_admin_precision; 'Oui' centre_recherche→centre_recherche_domaines; 'Oui' pr_differente→pr_prenom+pr_nom+pr_civilite tous visibles. (6) req-fetch-btn: NEQ '1173456789' → overwrite: nom_entreprise devient 'Groupe Fleuve ltée' + toast 'Formulaire pré-rempli depuis le Registraire'; NEQ 'ABC' → backend 422 + toast 'Récupération impossible (NEQ à 9-10 chiffres)'. (7) oqlf-save → toast 'Formulaire d'inscription enregistré', persistence vérifiée après reload (site_web, resp_courriel, resp_telephone, nb_employes_actuel=38, nom_entreprise='Groupe Fleuve ltée', req-panel toujours affiché). (8) oqlf-export → GET /dossiers/{id}/export/oqlf 200 application/pdf (téléchargement déclenché).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Formulaire OQLF — Section 6", "issues": ["Champ oqlf-att_date utilise l'input date natif (mm/dd/yyyy au chargement) au lieu du Calendar shadcn en format québécois jj/mm/aaaa — incohérent avec l'app OQLF/loi 96. Même remarque signalée en itération 7 pour 'Date limite légale'."]},
+      {"screen": "Formulaire OQLF — panneau REQ", "issues": ["Texte 10-12px, libellés slate-500 sur emerald-50/50 — contraste faible (signalé en itération 7)."]},
+      {"screen": "Formulaire OQLF — bloc d'aperçu du dossier au-dessus", "issues": ["Le bloc 'Inscription de l'entreprise' (statut + date limite légale + bouton 'Enregistrer l'étape') coexiste au-dessus du nouveau formulaire OQLF; c'est légèrement redondant/confusant — envisager de fusionner ou de le déplacer."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/reset_inscription.py", "/app/test_reports/iteration_7.json"],
+  "action_items": [
+    "Optionnel (LOW/design): remplacer l'input date natif de oqlf-att_date (et 'Date limite légale') par Calendar shadcn au format jj/mm/aaaa.",
+    "Optionnel (MEDIUM UX): à l'auto-fetch, marquer le formulaire comme 'modifications non enregistrées' ou persister automatiquement — sinon la donnée REQ récupérée est perdue si l'utilisateur quitte sans cliquer 'Enregistrer' (report d'itérations 6/7).",
+    "Optionnel: améliorer le message d'erreur du toast pour afficher le detail renvoyé par l'API 422 ('NEQ invalide : 9 ou 10 chiffres attendus').",
+    "Optionnel: envisager d'unifier ou de retirer le bloc 'Inscription de l'entreprise' au-dessus du nouveau formulaire OQLF (redondance visuelle)."
+  ],
+  "critical_code_review_comments": [
+    "OqlfField est hoisté au niveau module et reçoit d/set en props — évite le remontage à chaque frappe (confirmé par activeElement stable 4/4).",
+    "Garde autoFetched useRef + condition sur !oqlf_data._req empêche les doubles fetches sous StrictMode (1 seul GET observé).",
+    "mapReqToOqlf préserve current pour les champs utilisateur (ex. nb_employes_actuel) via ?? — bon comportement, mais écrase systématiquement les champs REQ dérivés (nom_entreprise, resp_*, att_*) sans confirmation. Considérer un diff/confirmation si l'utilisateur a déjà édité manuellement un champ REQ.",
+    "downloadPdf sans loader visible: pas de feedback utilisateur pendant la génération du PDF (fonctionne mais UX améliorable).",
+    "Le champ nb_employes_actuel convertit la valeur en Number à la volée — attention pour un futur backend qui attendrait une string; ici OK.",
+    "Le compteur remaining ne compte pas att_date (type=date, source entrevue) comme complété si non rempli — cohérent avec isEmpty.",
+    "Aucun mécanisme 'unsaved changes' warning côté navigation (window.beforeunload) — utile pour un formulaire long."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "non testé (frontend only); GET /req/lookup validé indirectement (200 sur 1140000999 et 1173456789, 422 sur 'ABC'); PATCH /oqlf 200; GET /export/oqlf 200 application/pdf", "frontend": "100% (8/8 scénarios; 11/11 pré-remplissage REQ; 4/4 saisie sans perte de focus; 7/7 selects; 7/7 conditionnels; persistence OK; PDF 200)"},
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO admin)",
+  "seed_data_creation": "oqlf_data du dossier 2a62630c-ef53-4938-80d9-9879858ae5fc réinitialisé via PATCH /api/v1/dossiers/{id}/oqlf {oqlf_data:{neq:'1140000999'}} avant le test, puis rempli pendant le test (site_web, resp_courriel, resp_telephone, nb_employes_actuel=38, 7 selects, plusieurs conditionnels, et NEQ écrasé à '1173456789' → 'Groupe Fleuve ltée' persisté).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Route /dossier/:id (singulier). Composant OqlfInscriptionForm remplace EntrevueInscription. Auto-fetch REQ ne se déclenche que si oqlf_data.neq présent ET oqlf_data._req absent → utiliser un PATCH /oqlf {oqlf_data:{neq:'1140000999'}} pour reset (voir script inline dans /app/backend/tests/reset_inscription.py qu'il faudra adapter au champ oqlf_data). Toasts sonner: '[data-sonner-toast], li[role=\"status\"]'. Token localStorage 'conformiste_token'. Aucun bug bloquant.",
+  "rca_of_the_issue": "Aucun bug bloquant. Le hoisting de OqlfField (comme EntrevueField avant lui) résout tout risque de perte de focus. L'auto-fetch REQ est déterministe et idempotent grâce au useRef guard + condition sur !_req."
+}
