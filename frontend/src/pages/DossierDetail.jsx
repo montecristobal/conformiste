@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { Layout } from "@/components/Layout";
-import api from "@/lib/api";
+import api, { downloadPdf } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,7 +17,63 @@ import { Module2Programme } from "@/components/Module2Programme";
 import { AnalyseTab } from "@/components/AnalyseTab";
 import { AuditLog } from "@/components/AuditLog";
 import { toast } from "sonner";
-import { ArrowLeft, Send, MessageSquarePlus, Calendar } from "lucide-react";
+import { ArrowLeft, Send, MessageSquarePlus, Calendar, ClipboardList, FileDown } from "lucide-react";
+
+function EntrevueInscription({ dossier, onUpdated }) {
+  const [d, setD] = useState(dossier.inscription_data || {});
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setD((p) => ({ ...p, [k]: v }));
+  const num = (v) => (v === "" ? "" : Number(v));
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.patch(`/dossiers/${dossier.id}/inscription`, { inscription_data: d });
+      toast.success("Entrevue enregistrée");
+      onUpdated(data);
+    } catch (e) { toast.error("Erreur"); }
+    finally { setBusy(false); }
+  };
+  const F = ({ k, label, type = "text" }) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <Input type={type} value={d[k] ?? ""} data-testid={`entrevue-${k}`}
+        onChange={(e) => set(k, type === "number" ? num(e.target.value) : e.target.value)} />
+    </div>
+  );
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-4" data-testid="entrevue-inscription">
+      <div className="flex items-center gap-2">
+        <ClipboardList size={18} className="text-blue-600" />
+        <h4 className="font-display font-bold text-[#0F2B48]">Entrevue d'inscription</h4>
+      </div>
+      <p className="text-xs text-slate-500">Répondez à ces questions pour produire le document d'inscription à transmettre à l'Office. Le nombre d'employés détermine si la formation d'un comité de francisation s'ajoute au cheminement.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <F k="neq" label="NEQ" />
+        <F k="nb_employes_quebec" label="Nombre d'employés au Québec" type="number" />
+        <F k="nb_etablissements" label="Nombre d'établissements" type="number" />
+        <F k="personne_ressource" label="Personne-ressource" />
+        <F k="courriel" label="Courriel" />
+        <F k="telephone" label="Téléphone" />
+        <div className="sm:col-span-2"><F k="adresse" label="Adresse" /></div>
+        <div className="sm:col-span-2 space-y-1.5">
+          <Label className="text-xs">Activités / secteur</Label>
+          <Textarea rows={2} value={d.activites ?? ""} data-testid="entrevue-activites" onChange={(e) => set("activites", e.target.value)} />
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={save} disabled={busy} data-testid="entrevue-save" className="bg-[#0F2B48] hover:bg-[#0F2B48]/90">
+          <Send size={15} className="mr-1" /> {busy ? "Enregistrement…" : "Enregistrer l'entrevue"}
+        </Button>
+        <Button size="sm" variant="outline" data-testid="entrevue-export"
+          onClick={() => downloadPdf(`/dossiers/${dossier.id}/export/inscription`, `inscription_${dossier.neq || dossier.id}.pdf`).catch(() => toast.error("Erreur PDF"))}>
+          <FileDown size={15} className="mr-1" /> Produire le document (PDF)
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function StagePanel({ dossier, stageKey, onUpdated }) {
   const stage = dossier.stages.find((s) => s.key === stageKey);
@@ -76,6 +133,8 @@ function StagePanel({ dossier, stageKey, onUpdated }) {
         <Send size={15} className="mr-1" /> Enregistrer l'étape
       </Button>
 
+      {stageKey === "inscription" && <EntrevueInscription dossier={dossier} onUpdated={onUpdated} />}
+
       <div className="border-t border-slate-100 pt-4">
         <h4 className="text-sm font-semibold text-slate-700 mb-2">Historique des échanges avec l'OQLF</h4>
         <div className="space-y-2 mb-3">
@@ -101,6 +160,8 @@ function StagePanel({ dossier, stageKey, onUpdated }) {
 export default function DossierDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isSolo = user?.account_type === "SOLO";
   const [dossier, setDossier] = useState(null);
   const [themes, setThemes] = useState([]);
   const [activeStage, setActiveStage] = useState("inscription");
@@ -115,11 +176,15 @@ export default function DossierDetail() {
 
   if (!dossier) return <Layout><div className="py-20 text-center text-slate-400">Chargement…</div></Layout>;
 
+  const visibleStages = (dossier.stages || []).filter((s) => s.key !== "comite" || dossier.comite_requis);
+
   return (
     <Layout>
-      <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4" data-testid="back-to-dashboard">
-        <ArrowLeft size={16} /> Retour au tableau de bord
-      </button>
+      {!isSolo && (
+        <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4" data-testid="back-to-dashboard">
+          <ArrowLeft size={16} /> Retour au tableau de bord
+        </button>
+      )}
 
       <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
         <div>
@@ -134,7 +199,7 @@ export default function DossierDetail() {
       </div>
 
       <Card className="p-4 mb-6">
-        <PipelineStepper stages={dossier.stages} activeKey={activeStage} onSelect={(k) => { setActiveStage(k); setTab("apercu"); }} />
+        <PipelineStepper stages={visibleStages} activeKey={activeStage} onSelect={(k) => { setActiveStage(k); setTab("apercu"); }} />
       </Card>
 
       <Tabs value={tab} onValueChange={setTab}>

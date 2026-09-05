@@ -118,6 +118,10 @@ class Module1In(BaseModel):
     module1_meta: Dict[str, Any] = {}
 
 
+class InscriptionIn(BaseModel):
+    inscription_data: Dict[str, Any] = {}
+
+
 class Module2In(BaseModel):
     module2_admin: Dict[str, Any] = {}
     module2_mesures: List[Dict[str, Any]] = []
@@ -213,6 +217,19 @@ async def register(body: RegisterIn, response: Response):
            "created_at": datetime.now(timezone.utc).isoformat()}
     res = await db.users.insert_one(doc)
     uid = str(res.inserted_id)
+    if body.account_type == "SOLO":
+        ddoc = {
+            "id": str(uuid.uuid4()), "owner_id": uid, "client_id": None,
+            "nom_entreprise": body.name, "neq": "",
+            "nb_employes_quebec": 0, "nb_etablissements": 1,
+            "date_attestation_inscription": None,
+            "stages": new_dossier_stages(),
+            "module1_data": {}, "module1_meta": {},
+            "module2_admin": {}, "module2_mesures": [], "inscription_data": {},
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.dossiers.insert_one(dict(ddoc))
     token = create_access_token(uid, email)
     set_auth_cookie(response, token)
     return {"access_token": token,
@@ -371,6 +388,37 @@ async def save_module2(dossier_id: str, body: Module2In,
         "updated_at": datetime.now(timezone.utc).isoformat()}})
     await audit(dossier_id, user, "Enregistrement du Module 2 (Programme de francisation)")
     return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
+@api.patch("/dossiers/{dossier_id}/inscription")
+async def save_inscription(dossier_id: str, body: InscriptionIn,
+                           user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    upd = {"inscription_data": body.inscription_data,
+           "updated_at": datetime.now(timezone.utc).isoformat()}
+    emp = body.inscription_data.get("nb_employes_quebec")
+    etab = body.inscription_data.get("nb_etablissements")
+    if isinstance(emp, (int, float)):
+        upd["nb_employes_quebec"] = int(emp)
+    if isinstance(etab, (int, float)):
+        upd["nb_etablissements"] = int(etab)
+    neq = body.inscription_data.get("neq")
+    if isinstance(neq, str) and neq:
+        upd["neq"] = neq
+    await db.dossiers.update_one({"id": dossier_id}, {"$set": upd})
+    await audit(dossier_id, user, "Entrevue d'inscription enregistrée")
+    return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
+@api.get("/dossiers/{dossier_id}/export/inscription")
+async def export_inscription(dossier_id: str, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    await audit(dossier_id, user, "Export PDF — Document d'inscription")
+    from pdf_export import build_inscription_pdf
+    buf = build_inscription_pdf(d)
+    fn = f"inscription_{d.get('neq') or dossier_id}.pdf"
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
 
 @api.patch("/dossiers/{dossier_id}/stage/{stage_key}")

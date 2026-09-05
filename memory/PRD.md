@@ -59,6 +59,12 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Regroupement des rappels : le panneau de notifications regroupe par dossier (rappel le plus urgent en tête, badge « N rappels »), badge de non-lus compté par dossier.
 - Rappels par courriel : envoi Resend géré par Emergent (mailer.py + gate de sécurité), en plus des notifications in-app, déclenché par la génération de rappels (destinataire = propriétaire du dossier, gabarit serveur, lien https vers le dossier).
 
+## Implémenté (2026-06 — itération 5, mode SOLO)
+- Inscription SOLO : un dossier unique est créé automatiquement à l'inscription ; l'utilisateur SOLO arrive directement sur ce dossier (cheminement en haut), sans possibilité d'ajouter d'autres dossiers (bouton « Nouveau dossier » réservé au PRO ; /dashboard redirige le SOLO vers son dossier).
+- Cheminement conditionnel : l'étape « Constitution du comité de francisation » n'apparaît que si le nombre d'employés au Québec est ≥ 100 (sinon masquée).
+- Entrevue d'inscription : formulaire guidé dans l'étape « Inscription » (NEQ, employés, établissements, personne-ressource, coordonnées, activités) qui produit un document d'inscription PDF ; le nombre d'employés saisi met à jour le dossier et déclenche l'apparition du comité.
+- Vérifié (backend) : auto-dossier SOLO, bascule comite_requis 0→false / 120→true, export PDF inscription (application/pdf).
+
 ## Prochaines tâches (mis à jour)
 - Faire basculer des thèmes à `texte_loi_valide=true` (au cas par cas, après validation du texte légal) pour activer les qualifications de niveau 2.
 - Rappels d'échéance automatiques J-30 / J-7.

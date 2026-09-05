@@ -115,6 +115,36 @@ def build_module1_pdf(dossier):
     return buf
 
 
+def build_inscription_pdf(dossier):
+    ins = dossier.get("inscription_data", {}) or {}
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, topMargin=1.6 * cm,
+                            bottomMargin=1.6 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
+    ss = _styles()
+    story = []
+    _header(story, ss, "Demande d'inscription de l'entreprise",
+            f"Entreprise : <b>{dossier.get('nom_entreprise', '—')}</b>")
+    story.append(_kv_table([
+        ("Nom de l'entreprise", dossier.get("nom_entreprise")),
+        ("NEQ", ins.get("neq") or dossier.get("neq")),
+        ("Adresse", ins.get("adresse")),
+        ("Personne-ressource", ins.get("personne_ressource")),
+        ("Courriel", ins.get("courriel")),
+        ("Téléphone", ins.get("telephone")),
+        ("Nombre d'employés au Québec", ins.get("nb_employes_quebec", dossier.get("nb_employes_quebec"))),
+        ("Nombre d'établissements", ins.get("nb_etablissements", dossier.get("nb_etablissements"))),
+        ("Comité de francisation requis", "Oui (100 employés ou plus)" if (dossier.get("nb_employes_quebec") or 0) >= 100 else "Non"),
+        ("Activités / secteur", ins.get("activites")),
+    ]))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(
+        "Document produit à partir de l'entrevue d'inscription. À réviser puis transmettre "
+        "à l'Office québécois de la langue française.", ss["Label"]))
+    doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+    buf.seek(0)
+    return buf
+
+
 def build_module2_pdf(dossier, themes, comite_requis):
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=letter, topMargin=1.6 * cm,

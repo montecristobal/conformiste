@@ -106,6 +106,10 @@ export default function Dashboard() {
   };
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!isPro && dossiers.length > 0) navigate(`/dossier/${dossiers[0].id}`, { replace: true });
+  }, [isPro, dossiers, navigate]);
+
   const filtered = useMemo(() =>
     filterClient === "all" ? dossiers : dossiers.filter((d) => d.client_id === filterClient),
     [dossiers, filterClient]);
@@ -132,7 +136,7 @@ export default function Dashboard() {
               </SelectContent>
             </Select>
           )}
-          <CreateDossierDialog clients={clients} isPro={isPro} onCreated={() => load()} />
+          {isPro && <CreateDossierDialog clients={clients} isPro={isPro} onCreated={() => load()} />}
         </div>
       </div>
 
@@ -159,7 +163,7 @@ export default function Dashboard() {
           <FolderOpen className="mx-auto text-slate-300 mb-3" size={40} />
           <h3 className="font-display font-bold text-slate-700">Aucun dossier</h3>
           <p className="text-sm text-slate-500 mb-4">Créez votre premier dossier de francisation pour commencer.</p>
-          <div className="flex justify-center"><CreateDossierDialog clients={clients} isPro={isPro} onCreated={() => load()} /></div>
+          {isPro && <div className="flex justify-center"><CreateDossierDialog clients={clients} isPro={isPro} onCreated={() => load()} /></div>}
         </Card>
       ) : (
         <div className="space-y-3">
