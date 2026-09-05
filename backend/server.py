@@ -128,6 +128,10 @@ class OqlfIn(BaseModel):
     oqlf_data: Dict[str, Any] = {}
 
 
+class EnrichIn(BaseModel):
+    site_url: Optional[str] = None
+
+
 class Module2In(BaseModel):
     module2_admin: Dict[str, Any] = {}
     module2_mesures: List[Dict[str, Any]] = []
@@ -454,6 +458,21 @@ async def export_oqlf(dossier_id: str, user: dict = Depends(get_current_user)):
     fn = f"formulaire_inscription_oqlf_{d.get('neq') or dossier_id}.pdf"
     return StreamingResponse(buf, media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
+@api.post("/dossiers/{dossier_id}/module1/enrich")
+async def module1_enrich(dossier_id: str, body: EnrichIn,
+                         user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    from enrichment import enrich_module1
+    oqlf = d.get("oqlf_data", {}) or {}
+    m1 = d.get("module1_data", {}) or {}
+    site = (body.site_url or "").strip() or m1.get("s1.sites_web") or oqlf.get("site_web") or ""
+    nom = d.get("nom_entreprise") or oqlf.get("nom_entreprise") or m1.get("s1.nom") or ""
+    neq = d.get("neq") or oqlf.get("neq") or ""
+    result = await enrich_module1(nom, neq, site)
+    await audit(dossier_id, user, "Pré-remplissage par recherche Web (analyse linguistique)")
+    return result
 
 
 @api.get("/dossiers/{dossier_id}/export/inscription")

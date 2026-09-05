@@ -95,6 +95,12 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 
 ## Backlog / améliorations optionnelles (post-itération 6)
 - Brancher la vraie source REQ (temps réel ou données ouvertes) à la place de la démo simulée.
+
+## Implémenté (2026-06 — itération 7)
+- **Avertissement « modifications non enregistrées »** (formulaire d'inscription OQLF) : badge visible, `beforeunload` (fermeture/rafraîchissement) et confirmation lors du changement d'étape/onglet ou du retour au tableau de bord (`OqlfInscriptionForm` + `DossierDetail`).
+- **Investigation vraie source REQ** : aucune API REST publique temps réel ; site public renvoie 403 depuis le pod ; données ouvertes sous licence CC BY-NC-SA (non commerciale) + sans noms/administrateurs. Décision reportée (démo conservée). Question posée à l'utilisateur.
+- **Étape 2 — Pré-remplissage par recherche Web (analyse linguistique / Module 1)** : bouton « Pré-remplir par recherche Web » qui parcourt le site Web officiel (crawler anti-SSRF `analysis.fetch_url_text`, pages accueil + à-propos/contact) puis un LLM (OpenAI gpt-5.4, clé Emergent) PROPOSE des valeurs pour des champs factuels ciblés (Sections 1, 2, 3, 8, 11). UX **accepter/refuser par proposition** + « Tout accepter/refuser » ; seuls les champs acceptés remplissent le formulaire ; source + confiance affichées. Backend `POST /api/v1/dossiers/{id}/module1/enrich` (`enrichment.py`), frontend `WebEnrichPanel.jsx` intégré à `Module1Form.jsx`.
+  - Vérifié : backend curl (10 propositions correctes pour lightspeedhq.com, <30s) ; testing agent frontend 100% (panneau, accept/refuse, filtrage des refus, application, enregistrement, persistance après reload).
 - UX : marquer « modifications non enregistrées » après un auto-fetch (sinon données REQ perdues si l'utilisateur quitte sans enregistrer).
 - Design : remplacer les inputs date natifs (att_date, « date limite légale ») par le Calendar shadcn au format jj/mm/aaaa ; contraste du panneau REQ.
 - Paiements Stripe (PRO/SOLO) — toujours P0 en attente.

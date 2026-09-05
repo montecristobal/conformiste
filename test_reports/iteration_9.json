@@ -1,0 +1,20 @@
+{
+  "summary": "Full E2E frontend test of PRE-REMPLISSAGE PAR RECHERCHE WEB (Module 1, Section 1) passed. Login → dossier singular route → tab-module1 → m1-nav-s1 → fill sites_web with https://www.lightspeedhq.com → click module1-enrich-button → web-enrich-panel appeared with 10 proposals (nom, autres_noms, sites_web, adresse, ville, code_postal, activités, nom affiché, communications, etc.) each with source='site Web' and confidence 95-99%. Refused proposal-0 (s1.nom = 'Lightspeed Commerce') → Apply button correctly updated to 'Appliquer 9 propositions acceptées'. Applied → toast '9 champ(s) pré-rempli(s) — pensez à enregistrer', panel closed, ACCEPTED fields filled (autres_noms='Lightspeed', sites_web, adresse='700 St-Antoine Est', ville='Montreal', code_postal='H2Y 1A6'), REFUSED field (s1.nom) correctly stayed empty. Save → toast 'Module 1 enregistré'. Reload → all values persisted. Backend enrich call returned 200 in <30s.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO admin) — from review request",
+  "seed_data_creation": "None — used existing dossier 2a62630c-ef53-4938-80d9-9879858ae5fc (TEST_Analyse Inc.). Section 1 fields were populated by apply and persisted.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Web enrichment flow is fully functional. Backend endpoint POST /api/v1/dossiers/{id}/module1/enrich returned 10 proposals in <30s for lightspeedhq.com. Frontend properly (a) filters refused proposals from apply, (b) merges accepted values into form state, (c) persists on save + across reload. Toasts use [data-sonner-toast]. All required data-testid attributes are present: module1-enrich-button, web-enrich-panel, enrich-proposal-N, enrich-value-N, enrich-accept-N, enrich-refuse-N, enrich-accept-all, enrich-refuse-all, enrich-apply, module1-save-button, m1-s1-* field inputs.",
+  "rca of the issue": "N/A — no issues found."
+}

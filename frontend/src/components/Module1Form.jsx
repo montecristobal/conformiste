@@ -4,16 +4,40 @@ import { FieldRenderer } from "@/components/FieldRenderer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Save, FileDown, CheckCircle2, Info } from "lucide-react";
+import { Save, FileDown, CheckCircle2, Info, Sparkles } from "lucide-react";
 import api, { API, downloadPdf } from "@/lib/api";
+import { WebEnrichPanel } from "@/components/WebEnrichPanel";
 
 export function Module1Form({ dossier, onSaved }) {
   const [values, setValues] = useState(dossier.module1_data || {});
   const [activeSection, setActiveSection] = useState("s1");
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [enrichBusy, setEnrichBusy] = useState(false);
+  const [proposals, setProposals] = useState(null);
+  const [enrichMeta, setEnrichMeta] = useState({});
 
   useEffect(() => { setValues(dossier.module1_data || {}); }, [dossier.id]);
+
+  const runEnrich = async () => {
+    setEnrichBusy(true);
+    try {
+      const site = values["s1.sites_web"] || dossier.oqlf_data?.site_web || "";
+      const { data } = await api.post(`/dossiers/${dossier.id}/module1/enrich`, { site_url: site });
+      setProposals(data.proposals || []);
+      setEnrichMeta({ site_used: data.site_used || [], warnings: data.warnings || [] });
+      if ((data.proposals || []).length === 0) toast.info("Aucune proposition trouvée");
+    } catch (e) {
+      toast.error("Recherche Web impossible");
+    } finally { setEnrichBusy(false); }
+  };
+
+  const applyProposals = (map) => {
+    const n = Object.keys(map).length;
+    setValues((p) => ({ ...p, ...map }));
+    setProposals(null);
+    if (n > 0) toast.success(`${n} champ(s) pré-rempli(s) — pensez à enregistrer`);
+  };
 
   const employes = Number(values["s4.employes_quebec"] ?? dossier.nb_employes_quebec ?? 0);
   const etablissements = Number(values["s4.etablissements"] ?? dossier.nb_etablissements ?? 1);
@@ -100,6 +124,10 @@ export function Module1Form({ dossier, onSaved }) {
               : <span>Saisissez la date d'attestation d'inscription pour calculer l'échéance légale.</span>}
           </div>
           <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={runEnrich} disabled={enrichBusy} data-testid="module1-enrich-button"
+              className="border-emerald-300 text-emerald-800 hover:bg-emerald-50">
+              <Sparkles size={15} className="mr-1" /> {enrichBusy ? "Recherche…" : "Pré-remplir par recherche Web"}
+            </Button>
             <Button size="sm" variant="outline" onClick={exportPdf} data-testid="export-pdf-module1-button">
               <FileDown size={15} className="mr-1" /> Export PDF
             </Button>
@@ -109,6 +137,11 @@ export function Module1Form({ dossier, onSaved }) {
             </Button>
           </div>
         </Card>
+
+        {proposals !== null && (
+          <WebEnrichPanel proposals={proposals} meta={enrichMeta}
+            onApply={applyProposals} onClose={() => setProposals(null)} />
+        )}
 
         <Card className="p-6" data-testid={`m1-section-${active.id}`}>
           <h3 className="font-display text-lg font-bold text-[#0F2B48] mb-5">{active.titre}</h3>
