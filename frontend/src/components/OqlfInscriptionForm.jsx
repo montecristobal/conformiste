@@ -207,12 +207,22 @@ function ReqPanel({ req }) {
   );
 }
 
-export function OqlfInscriptionForm({ dossier, onUpdated }) {
+export function OqlfInscriptionForm({ dossier, onUpdated, onDirtyChange }) {
   const [d, setD] = useState(dossier.oqlf_data || {});
   const [busy, setBusy] = useState(false);
   const [reqBusy, setReqBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const autoFetched = useRef(false);
-  const set = (k, v) => setD((p) => ({ ...p, [k]: v }));
+  const set = (k, v) => { setD((p) => ({ ...p, [k]: v })); setDirty(true); };
+
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+
+  // Avertissement navigateur (fermeture / rafraîchissement) si modifications non enregistrées
+  useEffect(() => {
+    const handler = (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
 
   const fetchReq = async (neqValue, { auto = false } = {}) => {
     const neq = (neqValue || "").trim();
@@ -221,6 +231,7 @@ export function OqlfInscriptionForm({ dossier, onUpdated }) {
     try {
       const { data } = await api.get(`/req/lookup`, { params: { neq } });
       setD((prev) => mapReqToOqlf(data, prev));
+      setDirty(true);
       if (!auto) toast.success("Formulaire pré-rempli depuis le Registraire");
     } catch (e) { if (!auto) toast.error("Récupération impossible (NEQ à 9-10 chiffres)"); }
     finally { setReqBusy(false); }
@@ -245,6 +256,7 @@ export function OqlfInscriptionForm({ dossier, onUpdated }) {
     try {
       const { data } = await api.patch(`/dossiers/${dossier.id}/oqlf`, { oqlf_data: d });
       toast.success("Formulaire d'inscription enregistré");
+      setDirty(false);
       onUpdated(data);
     } catch (e) { toast.error("Erreur"); }
     finally { setBusy(false); }
@@ -297,7 +309,7 @@ export function OqlfInscriptionForm({ dossier, onUpdated }) {
         </div>
       ))}
 
-      <div className="flex flex-wrap gap-2 pt-1">
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         <Button size="sm" onClick={save} disabled={busy} data-testid="oqlf-save" className="bg-[#0F2B48] hover:bg-[#0F2B48]/90">
           <Send size={15} className="mr-1" /> {busy ? "Enregistrement…" : "Enregistrer le formulaire"}
         </Button>
@@ -305,6 +317,11 @@ export function OqlfInscriptionForm({ dossier, onUpdated }) {
           onClick={() => downloadPdf(`/dossiers/${dossier.id}/export/oqlf`, `formulaire_inscription_oqlf_${dossier.neq || dossier.id}.pdf`).catch(() => toast.error("Erreur PDF"))}>
           <FileDown size={15} className="mr-1" /> Produire le formulaire (PDF)
         </Button>
+        {dirty && (
+          <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800" data-testid="oqlf-unsaved-badge">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> Modifications non enregistrées
+          </span>
+        )}
       </div>
     </div>
   );

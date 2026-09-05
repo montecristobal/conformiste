@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Send, MessageSquarePlus, Calendar, FileDown } from "lucide-react";
 
 
-function StagePanel({ dossier, stageKey, onUpdated }) {
+function StagePanel({ dossier, stageKey, onUpdated, onDirtyChange }) {
   const stage = dossier.stages.find((s) => s.key === stageKey);
   const [statut, setStatut] = useState(stage.statut);
   const [dateLimite, setDateLimite] = useState(stage.date_limite || "");
@@ -79,7 +79,7 @@ function StagePanel({ dossier, stageKey, onUpdated }) {
         <Send size={15} className="mr-1" /> Enregistrer l'étape
       </Button>
 
-      {stageKey === "inscription" && <OqlfInscriptionForm dossier={dossier} onUpdated={onUpdated} />}
+      {stageKey === "inscription" && <OqlfInscriptionForm dossier={dossier} onUpdated={onUpdated} onDirtyChange={onDirtyChange} />}
 
       <div className="border-t border-slate-100 pt-4">
         <h4 className="text-sm font-semibold text-slate-700 mb-2">Historique des échanges avec l'OQLF</h4>
@@ -112,6 +112,14 @@ export default function DossierDetail() {
   const [themes, setThemes] = useState([]);
   const [activeStage, setActiveStage] = useState("inscription");
   const [tab, setTab] = useState("apercu");
+  const dirtyRef = useRef(false);
+
+  const confirmLeave = () => {
+    if (!dirtyRef.current) return true;
+    const ok = window.confirm("Vous avez des modifications non enregistrées dans le formulaire d'inscription. Quitter sans enregistrer ?");
+    if (ok) dirtyRef.current = false;
+    return ok;
+  };
 
   useEffect(() => {
     api.get(`/dossiers/${id}`).then(({ data }) => setDossier(data)).catch(() => navigate("/dashboard"));
@@ -127,7 +135,7 @@ export default function DossierDetail() {
   return (
     <Layout>
       {!isSolo && (
-        <button onClick={() => navigate("/dashboard")} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4" data-testid="back-to-dashboard">
+        <button onClick={() => { if (confirmLeave()) navigate("/dashboard"); }} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4" data-testid="back-to-dashboard">
           <ArrowLeft size={16} /> Retour au tableau de bord
         </button>
       )}
@@ -145,10 +153,10 @@ export default function DossierDetail() {
       </div>
 
       <Card className="p-4 mb-6">
-        <PipelineStepper stages={visibleStages} activeKey={activeStage} onSelect={(k) => { setActiveStage(k); setTab("apercu"); }} />
+        <PipelineStepper stages={visibleStages} activeKey={activeStage} onSelect={(k) => { if (confirmLeave()) { setActiveStage(k); setTab("apercu"); } }} />
       </Card>
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={(v) => { if (confirmLeave()) setTab(v); }}>
         <TabsList className="mb-4">
           <TabsTrigger value="apercu" data-testid="tab-apercu">Étape & aperçu</TabsTrigger>
           <TabsTrigger value="module1" data-testid="tab-module1">Module 1 — Analyse</TabsTrigger>
@@ -158,7 +166,7 @@ export default function DossierDetail() {
         </TabsList>
 
         <TabsContent value="apercu">
-          <StagePanel dossier={dossier} stageKey={activeStage} onUpdated={setDossier} />
+          <StagePanel dossier={dossier} stageKey={activeStage} onUpdated={setDossier} onDirtyChange={(b) => { dirtyRef.current = b; }} />
         </TabsContent>
         <TabsContent value="module1">
           <Module1Form dossier={dossier} onSaved={setDossier} />
