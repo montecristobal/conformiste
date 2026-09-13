@@ -124,6 +124,10 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Bascule de mode **Entrevue guidée / Formulaire complet** (même état, même sauvegarde, même schéma `MODULE1_SECTIONS` + `FieldRenderer`).
 - Vérifié : testing agent frontend 100% (mode par défaut entrevue, navigation, saisie persistée, bascule de mode, révision, finish + persistance après reload, régression enrich/langproof OK). Correctif : suppression du cumul de toasts (auto-save silencieux).
 - ⚠️ Voie 2 REQ (données ouvertes) : **non réalisable depuis le pod** — download gouv.qc.ca 403, datastore Données Québec non exploitable (HTML). Voie 1 (Service Web MCN) reste ouverte sur fourniture d'identifiants.
+
+## Implémenté (2026-06 — itération 11, annexe preuves PDF + guide questions restantes)
+- **Annexe « Preuves linguistiques » dans le PDF Module 1** : l'export `GET /api/v1/dossiers/{id}/export/module1` joint automatiquement toutes les captures horodatées (documents `source=preuve-langue`) en annexe (`build_module1_pdf(dossier, proof_images)` — titre, légende par capture, image intégrée). Dossier complet en un seul fichier. Vérifié : PDF 9 pages, annexe dès page 3, 7 captures intégrées (rendu visuel OK).
+- **Guide « questions restantes »** à l'étape Révision de l'entrevue guidée : calcul en direct des champs vides (respect des `showIf`, tableaux exclus) → bloc `m1-remaining` avec compteur + liste (section · libellé) + bouton « Aller » vers la section, ou `m1-remaining-complete` si tout est rempli. Vérifié : compteur/items/navigation/export 200 (le compteur est recalculé en direct sur `values`).
 - UX : marquer « modifications non enregistrées » après un auto-fetch (sinon données REQ perdues si l'utilisateur quitte sans enregistrer).
 - Design : remplacer les inputs date natifs (att_date, « date limite légale ») par le Calendar shadcn au format jj/mm/aaaa ; contraste du panneau REQ.
 - Paiements Stripe (PRO/SOLO) — toujours P0 en attente.

@@ -639,7 +639,17 @@ async def dossier_audit(dossier_id: str, user: dict = Depends(get_current_user))
 async def export_module1(dossier_id: str, user: dict = Depends(get_current_user)):
     d = await get_owned_dossier(dossier_id, user)
     await audit(dossier_id, user, "Export PDF — Module 1 (Analyse linguistique)")
-    buf = build_module1_pdf(d)
+    proof_images = []
+    docs = await db.documents.find(
+        {"dossier_id": dossier_id, "source": "preuve-langue", "is_deleted": {"$ne": True}}
+    ).sort("created_at", 1).to_list(50)
+    for doc in docs:
+        try:
+            content, _ct = await run_in_threadpool(get_object, doc["storage_path"])
+            proof_images.append((doc.get("original_filename", "Preuve linguistique"), content))
+        except Exception:
+            continue
+    buf = build_module1_pdf(d, proof_images=proof_images)
     fn = f"analyse_linguistique_{d.get('neq') or dossier_id}.pdf"
     return StreamingResponse(buf, media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})

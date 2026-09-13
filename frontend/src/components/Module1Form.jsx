@@ -128,6 +128,21 @@ export function Module1Form({ dossier, onSaved }) {
   const wizSection = inReview ? null : sections[Math.min(step, totalSteps - 1)];
   const overallPct = Math.round(sections.reduce((a, s) => a + sectionCompletion(s), 0) / (sections.length || 1));
 
+  const shouldShowField = (sec, f) => {
+    if (!f.showIf) return true;
+    return f.showIf.in.includes(values[`${sec.id}.${f.showIf.field}`]);
+  };
+  const missingFields = [];
+  sections.forEach((sec, idx) => {
+    sec.fields.forEach((f) => {
+      if (f.type === "table") return;
+      if (!shouldShowField(sec, f)) return;
+      const v = values[`${sec.id}.${f.id}`];
+      if (v === undefined || v === "" || (Array.isArray(v) && v.length === 0))
+        missingFields.push({ sectionTitre: sec.titre, idx, label: f.label });
+    });
+  });
+
   const actionBar = (
     <Card className="p-3 space-y-2 bg-blue-50/60 border-blue-200">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -210,6 +225,28 @@ export function Module1Form({ dossier, onSaved }) {
             <Card className="p-6" data-testid="m1-entrevue-review">
               <h3 className="font-display text-lg font-bold text-[#0F2B48] mb-1">Révision des réponses</h3>
               <p className="text-xs text-slate-500 mb-5">Vérifiez chaque section avant de finaliser. Vous pouvez revenir modifier une réponse.</p>
+
+              {missingFields.length > 0 ? (
+                <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50/70 p-4" data-testid="m1-remaining">
+                  <p className="text-xs font-semibold text-amber-800 mb-2">
+                    <span data-testid="m1-remaining-count">{missingFields.length}</span> question(s) restante(s) à compléter avant la transmission à l'Office
+                  </p>
+                  <ul className="space-y-1 max-h-56 overflow-auto">
+                    {missingFields.map((m, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 text-xs" data-testid={`m1-remaining-item-${i}`}>
+                        <span className="text-slate-600"><span className="text-slate-400">{m.sectionTitre} · </span>{m.label}</span>
+                        <button onClick={() => setStep(m.idx)} data-testid={`m1-remaining-goto-${i}`}
+                          className="shrink-0 rounded-md bg-white border border-amber-300 px-2 py-0.5 text-amber-700 hover:bg-amber-100">Aller</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="mb-5 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 text-xs font-semibold text-emerald-700" data-testid="m1-remaining-complete">
+                  <CheckCircle2 size={15} /> Toutes les questions sont complétées. Le dossier est prêt à être transmis.
+                </div>
+              )}
+
               <div className="space-y-2">
                 {sections.map((s, i) => {
                   const pct = sectionCompletion(s);

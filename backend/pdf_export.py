@@ -8,7 +8,9 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
+    Image as RLImage, PageBreak,
 )
+from reportlab.lib.utils import ImageReader
 
 NAVY = colors.HexColor("#0F2B48")
 AZUR = colors.HexColor("#2563EB")
@@ -85,7 +87,7 @@ def _fmt(v):
     return str(v)
 
 
-def build_module1_pdf(dossier):
+def build_module1_pdf(dossier, proof_images=None):
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=letter, topMargin=1.6 * cm,
                             bottomMargin=1.6 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
@@ -113,6 +115,31 @@ def build_module1_pdf(dossier):
         else:
             story.append(Paragraph("<i>Aucune réponse saisie.</i>", ss["Label"]))
         story.append(Spacer(1, 4))
+
+    if proof_images:
+        story.append(PageBreak())
+        story.append(Paragraph("Annexe — Preuves linguistiques (captures d'écran horodatées)", ss["H2"]))
+        story.append(Paragraph(
+            "Captures réalisées automatiquement par CONFORMISTE à des fins de preuve de la langue "
+            "affichée sur le site Web et les médias sociaux de l'entreprise.", ss["Label"]))
+        story.append(Spacer(1, 8))
+        max_w = doc.width
+        for caption, img_bytes in proof_images:
+            try:
+                reader = ImageReader(BytesIO(img_bytes))
+                iw, ih = reader.getSize()
+                w = min(max_w, iw)
+                h = w * ih / iw
+                max_h = 20 * cm
+                if h > max_h:
+                    h = max_h
+                    w = h * iw / ih
+                story.append(Paragraph(caption, ss["Label"]))
+                story.append(Spacer(1, 3))
+                story.append(RLImage(BytesIO(img_bytes), width=w, height=h))
+                story.append(Spacer(1, 12))
+            except Exception:
+                continue
 
     doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
     buf.seek(0)

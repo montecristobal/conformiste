@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend-only verification of the new 'questions restantes' repère block in the guided interview Review step + PDF export. Login OK, dossier route (SINGULIER) OK, Module 1 tab OK, Entrevue mode default OK. Reached review card in 12 'Suivant' clicks. Block m1-remaining is rendered with count=75 and 75 items; goto-0 navigates out of review to the correct section (Section 1 — Identité de l'entreprise · NEQ) with m1-entrevue-step-title visible. PDF export returned 200 application/pdf via /api/v1/dossiers/{id}/export/module1. Only minor observation: after filling one missing field and navigating back to review via Suivant, the m1-remaining-count stayed at 75 (did not decrement in this run).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Réduction du compteur m1-remaining-count après complétion", "issue": "Après avoir cliqué 'Aller' (goto-0) sur 'Section 1 · NEQ', rempli un input texte puis navigué jusqu'à la révision via 'Suivant', le compteur reste à 75 (avant=75, après=75). Peut être dû à: (a) auto-save silencieux sur 'Suivant' non déclenché pour ce champ (event blur/onChange), (b) l'input rempli n'était pas exactement le champ NEQ manquant (le premier input DOM de la section peut être un autre champ), ou (c) missingFields recalculé sur ancien state du dossier. À vérifier côté Module1Form: s'assurer que le trimmed value du champ correctement identifié met à jour `dossier` avant re-render de la review.", "affected_selectors": ["m1-remaining-count", "m1-remaining-goto-0", "m1-entrevue-section-*"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investiguer pourquoi le compteur m1-remaining-count ne décroît pas immédiatement après avoir rempli un champ manquant puis re-navigué vers la révision. Vérifier que l'auto-save sur 'Suivant' persiste bien le champ dans le state `dossier` avant le calcul missingFields de l'étape review."
+  ],
+  "critical_code_review_comments": [
+    "Module1Form: le calcul de missingFields dans l'étape review doit être basé sur l'état le plus récent du dossier (après auto-save). Envisager de forcer un re-calc au moment d'entrer dans la carte review, ou d'utiliser directement les valeurs locales du form plutôt que le dossier hydraté depuis l'API."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "85% (5/6 sub-checks OK, décrément compteur non observé)"},
+  "test_credentials": "vild@yuville.com / Conformiste2026!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Le bloc 'questions restantes' (data-testid=m1-remaining) est fonctionnel: compteur, items, boutons Aller opérationnels; navigation vers la bonne section OK; export PDF Module 1 renvoie 200 application/pdf. Seule anomalie: décrément du compteur non constaté après complétion + retour à la révision — pourrait être un problème d'auto-save/re-calc. Dossier 2a62630c-ef53-4938-80d9-9879858ae5fc a 75 champs manquants dans le workflow entrevue.",
+  "rca of the issue": "Compteur m1-remaining-count inchangé après complétion: RCA probable = l'auto-save silencieux au clic 'Suivant' ne pousse pas la nouvelle valeur du champ dans l'objet `dossier` utilisé par le calcul missingFields de la carte review, OU le premier input DOM ciblé par le test n'était pas le champ NEQ manquant (Section 1 pourrait contenir d'autres inputs affichés en amont). Reproduction: aller à review → cliquer m1-remaining-goto-0 → remplir 1er input de la section → cliquer 'Suivant' jusqu'à review → observer count identique. Mitigation: forcer un save synchrone (await) sur 'Suivant', ou recalculer missingFields à partir des valeurs de formulaire live (react-hook-form watch) plutôt que du dossier hydraté."
+}
