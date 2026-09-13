@@ -1,0 +1,22 @@
+{
+  "summary": "E2E frontend test PASSED for NEW 'Évaluer la langue + preuve' (module1-langproof-button) + regression on 'Pré-remplir par recherche Web' (module1-enrich-button). Login vild@yuville.com → /dossier/2a62630c-... (singular) → tab-module1 → m1-nav-s1 → fill s1.sites_web=https://www.lightspeedhq.com → click module1-langproof-button. Panel web-enrich-panel appeared in ~40s. enrich-evidence rendered with evidence-0 showing badge 'Autre langue' (red), 'Site Web', URL https://www.lightspeedhq.com (100% confidence), + 'Voir la capture' button. Click evidence-view-0 triggered GET /api/v1/documents/{id}/download → 200 image/png confirmed via network listener. 1 proposal rendered (s8.e_site_web=Non, source='détection de langue', 100%, note 'Langue détectée : en'). Accepter default → Appliquer → toast '1 champ(s) pré-rempli(s) — pensez à enregistrer'. Nav to m1-nav-s8 → 8.14 Site(s) web radio 'Non' correctly checked (aria-checked=true on m1-s8-e_site_web-opt-Non, visible in screenshot). Regression: module1-enrich-button on s1 returned 10 proposals in same panel — still functional. Save → toast 'Module 1 enregistré'. Reload verified: 8.14=Non persists after page reload. All 5 backend network calls returned 200 (auth/me, language-proof, documents/download, module1/enrich).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: viewProof uses window.open on blob URL which may be blocked by popup blockers in some browsers; consider offering a download fallback or inline preview. Not blocking — download endpoint returns 200."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO admin)",
+  "seed_data_creation": "None — used existing dossier 2a62630c-ef53-4938-80d9-9879858ae5fc. Post-test state: s1.sites_web=lightspeedhq.com, s8.e_site_web=Non, and prior s1 fields still persisted from iteration 9.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Both enrichment buttons share the same WebEnrichPanel via 'proposals' state. langproof endpoint returns evidence[] with document_id (linked to captured PNG screenshots) + proposals for 8.14/8.15. Radix RadioGroup uses aria-checked (not native input[type=radio]:checked) — query via [data-testid=\"m1-s8-e_site_web-opt-Non\"] and read aria-checked attribute. All data-testids from review request are present and working: module1-langproof-button, web-enrich-panel, enrich-evidence, evidence-0, evidence-view-0, enrich-proposal-0, enrich-accept-0, enrich-refuse-0, enrich-apply, module1-enrich-button, module1-save-button.",
+  "rca of the issue": "N/A — no issues found."
+}

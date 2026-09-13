@@ -8,10 +8,85 @@ Aucune valeur n'est écrite sans acceptation explicite.
 import os
 import json
 import logging
-from urllib.parse import urlparse
+import base64
+from urllib.parse import urlparse, parse_qs
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from analysis import fetch_url_text, _parse_json, UrlValidationError
+
+import requests
+from bs4 import BeautifulSoup
+from langdetect import detect_langs, DetectorFactory
+DetectorFactory.seed = 0
+
+_UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+       "Chrome/120.0.0.0 Safari/537.36")
+_BING = "https://www.bing.com/search"
+_SOCIAL_DOMAINS = ("linkedin.com/company", "linkedin.com/in", "facebook.com",
+                   "instagram.com", "x.com", "twitter.com", "youtube.com")
+
+
+def _decode_bing_url(href):
+    """Bing enveloppe les liens (/ck/a?...u=a1<base64url>). On décode l'URL réelle."""
+    if not href or "bing.com/ck/a" not in href:
+        return href
+    u = parse_qs(urlparse(href).query).get("u", [None])[0]
+    if u and u.startswith("a1"):
+        s = u[2:]
+        s += "=" * (-len(s) % 4)
+        try:
+            return base64.urlsafe_b64decode(s).decode("utf-8", "ignore")
+        except Exception:
+            return href
+    return href
+
+
+def web_search(query, n=5):
+    """Recherche Web générale via Bing (sans clé). Retourne [{title,url,snippet}]."""
+    try:
+        r = requests.get(_BING, params={"q": query, "setlang": "fr"},
+                         headers={"User-Agent": _UA, "Accept-Language": "fr-CA,fr;q=0.9"},
+                         timeout=20)
+        r.raise_for_status()
+    except Exception as e:
+        logger.warning(f"bing search failed: {e}")
+        return []
+    soup = BeautifulSoup(r.text, "lxml")
+    out = []
+    for li in soup.select("li.b_algo")[:n]:
+        a = li.select_one("h2 a")
+        if not a or not a.get("href"):
+            continue
+        cap = li.select_one(".b_caption p") or li.select_one("p")
+        out.append({"title": a.get_text(" ", strip=True), "url": _decode_bing_url(a.get("href")),
+                    "snippet": cap.get_text(" ", strip=True) if cap else ""})
+    return out
+
+
+def discover_social_urls(nom, n=2):
+    if not nom:
+        return []
+    urls = []
+    for plat in ("LinkedIn", "Facebook", "Instagram"):
+        for r in web_search(f'{nom} {plat}', n=5):
+            u = r["url"]
+            if any(d in u for d in _SOCIAL_DOMAINS) and u not in urls:
+                urls.append(u)
+                break
+        if len(urls) >= n:
+            break
+    return urls
+
+
+def detect_language(text):
+    text = (text or "").strip()
+    if len(text) < 20:
+        return {"lang": "inconnu", "confidence": None, "is_french": None}
+    try:
+        top = detect_langs(text[:4000])[0]
+        return {"lang": top.lang, "confidence": round(top.prob, 2), "is_french": top.lang == "fr"}
+    except Exception:
+        return {"lang": "inconnu", "confidence": None, "is_french": None}
 
 logger = logging.getLogger("conformiste.enrichment")
 
@@ -106,21 +181,35 @@ _SYSTEM = (
     "français => 'Oui', uniquement une autre langue => 'Non', mixte/inconnu => omets.\n"
     "- Réponds STRICTEMENT en JSON valide, sans texte hors JSON, au format :\n"
     '{ "proposals": [ { "key": "<clé exacte>", "value": "<valeur>", '
-    '"source": "site Web" | "déduction", "confidence": <0..1>, "note": "courte justification (fr)" } ] }\n'
+    '"source": "site Web" | "recherche Web" | "déduction", "confidence": <0..1>, "note": "courte justification (fr)" } ] }\n'
+    "- Tu peux t'appuyer sur les RÉSULTATS DE RECHERCHE WEB fournis (titres/extraits) pour "
+    "les dirigeants et les médias sociaux ; dans ce cas source = \"recherche Web\".\n"
     "- Rédige les textes en français."
 )
 
 
 async def enrich_module1(nom, neq, site_url):
     crawled, used, warnings = _crawl(site_url)
+    search_ctx = ""
+    if nom:
+        try:
+            res = web_search(f'{nom} dirigeant président PDG Québec', n=4) + \
+                  web_search(f'{nom} LinkedIn Facebook Instagram médias sociaux', n=4)
+            if res:
+                search_ctx = ("\n\n--- RÉSULTATS DE RECHERCHE WEB (titres et extraits) ---\n" +
+                              "\n".join(f"* {r['title']} — {r['url']}\n  {r['snippet']}" for r in res[:8]))
+        except Exception as e:
+            logger.warning(f"web search enrich failed: {e}")
     champs = "\n".join(f'- "{k}" : {label} (type: {kind})' for k, label, kind in FIELDS)
     user_text = (
         f"Entreprise : {nom or '(inconnu)'} — NEQ : {neq or '(inconnu)'}\n"
         f"Site(s) fourni(s) : {site_url or '(aucun)'}\n\n"
         f"Champs à proposer (utilise EXACTEMENT ces clés) :\n{champs}\n\n"
         f"--- CONTENU DU SITE WEB (extraits réels) ---\n{crawled or '(aucun contenu récupéré)'}\n"
-        "--- FIN ---\n\n"
-        "Propose uniquement les champs appuyés par ce contenu ou un fait public fiable."
+        "--- FIN ---"
+        f"{search_ctx}\n\n"
+        "Propose uniquement les champs appuyés par ce contenu, ces résultats de recherche, "
+        "ou un fait public fiable."
     )
     chat = LlmChat(
         api_key=EMERGENT_KEY,

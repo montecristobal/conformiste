@@ -132,6 +132,11 @@ class EnrichIn(BaseModel):
     site_url: Optional[str] = None
 
 
+class LangProofIn(BaseModel):
+    site_url: Optional[str] = None
+    social_urls: Optional[List[str]] = None
+
+
 class Module2In(BaseModel):
     module2_admin: Dict[str, Any] = {}
     module2_mesures: List[Dict[str, Any]] = []
@@ -473,6 +478,97 @@ async def module1_enrich(dossier_id: str, body: EnrichIn,
     result = await enrich_module1(nom, neq, site)
     await audit(dossier_id, user, "Pré-remplissage par recherche Web (analyse linguistique)")
     return result
+
+
+def _reseau_name(url: str):
+    u = (url or "").lower()
+    for dom, nm in (("linkedin", "LinkedIn"), ("facebook", "Facebook"),
+                    ("instagram", "Instagram"), ("x.com", "X"), ("twitter", "X (Twitter)"),
+                    ("youtube", "YouTube")):
+        if dom in u:
+            return nm
+    return None
+
+
+@api.post("/dossiers/{dossier_id}/language-proof")
+async def language_proof(dossier_id: str, body: LangProofIn,
+                         user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    from enrichment import detect_language, discover_social_urls
+    from screenshot import capture_screenshot
+    from analysis import fetch_url_text as _fetch, UrlValidationError as _UVE
+    oqlf = d.get("oqlf_data", {}) or {}
+    m1 = d.get("module1_data", {}) or {}
+    site = (body.site_url or "").strip() or m1.get("s1.sites_web") or oqlf.get("site_web") or ""
+    nom = d.get("nom_entreprise") or oqlf.get("nom_entreprise") or m1.get("s1.nom") or ""
+
+    targets = []
+    if site:
+        targets.append(("site", site))
+    socials = body.social_urls or await run_in_threadpool(discover_social_urls, nom, 2)
+    for su in (socials or [])[:2]:
+        targets.append(("social", su))
+
+    evidence, warnings = [], []
+    for kind, url in targets[:3]:
+        lang = {"lang": "inconnu", "confidence": None, "is_french": None}
+        try:
+            text = await run_in_threadpool(_fetch, url)
+            lang = detect_language(text)
+        except _UVE:
+            warnings.append(f"URL refusée : {url}")
+            continue
+        except Exception:
+            warnings.append(f"Contenu inaccessible : {url}")
+        doc_id = None
+        try:
+            png = await run_in_threadpool(capture_screenshot, url)
+            path = f"{APP_NAME}/preuves/{user['id']}/{uuid.uuid4()}.png"
+            res = await run_in_threadpool(put_object, path, png, "image/png")
+            doc = {
+                "id": str(uuid.uuid4()), "dossier_id": dossier_id, "type": "file", "kind": "image",
+                "original_filename": f"Preuve linguistique — {url}", "storage_path": res["path"],
+                "content_type": "image/png", "size": res.get("size", len(png)), "url": url,
+                "source": "preuve-langue", "analysis": None, "is_deleted": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await db.documents.insert_one(dict(doc))
+            doc_id = doc["id"]
+        except Exception:
+            warnings.append(f"Capture d'écran impossible : {url}")
+        evidence.append({"kind": kind, "url": url, "lang": lang["lang"],
+                         "confidence": lang["confidence"], "is_french": lang["is_french"],
+                         "document_id": doc_id})
+
+    proposals = []
+    site_ev = next((e for e in evidence if e["kind"] == "site"), None)
+    if site_ev and site_ev["is_french"] is not None:
+        proposals.append({
+            "key": "s8.e_site_web", "label": "Le(s) site(s) Web sont en français (8.14)",
+            "value": "Oui" if site_ev["is_french"] else "Non", "source": "détection de langue",
+            "confidence": site_ev["confidence"], "note": f"Langue détectée : {site_ev['lang']}"})
+    soc = [e for e in evidence if e["kind"] == "social"]
+    soc_valid = [e for e in soc if e["is_french"] is not None]
+    if soc_valid:
+        proposals.append({
+            "key": "s8.medias_sociaux",
+            "label": "Contenus publicitaires sur médias sociaux en français (8.15)",
+            "value": "Oui" if any(e["is_french"] for e in soc_valid) else "Non",
+            "source": "détection de langue", "confidence": None,
+            "note": "D'après les pages de médias sociaux détectées"})
+    reseaux = []
+    for e in soc:
+        nm = _reseau_name(e["url"])
+        if nm and nm not in reseaux:
+            reseaux.append(nm)
+    if reseaux:
+        proposals.append({
+            "key": "s8.medias_sociaux_reseaux", "label": "Principaux médias sociaux utilisés",
+            "value": ", ".join(reseaux), "source": "recherche Web", "confidence": None,
+            "note": "Réseaux découverts en ligne"})
+
+    await audit(dossier_id, user, "Évaluation de la langue + preuve (capture d'écran)")
+    return {"proposals": proposals, "evidence": evidence, "warnings": warnings}
 
 
 @api.get("/dossiers/{dossier_id}/export/inscription")

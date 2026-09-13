@@ -4,7 +4,7 @@ import { FieldRenderer } from "@/components/FieldRenderer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Save, FileDown, CheckCircle2, Info, Sparkles } from "lucide-react";
+import { Save, FileDown, CheckCircle2, Info, Sparkles, Camera } from "lucide-react";
 import api, { API, downloadPdf } from "@/lib/api";
 import { WebEnrichPanel } from "@/components/WebEnrichPanel";
 
@@ -37,6 +37,27 @@ export function Module1Form({ dossier, onSaved }) {
     setValues((p) => ({ ...p, ...map }));
     setProposals(null);
     if (n > 0) toast.success(`${n} champ(s) pré-rempli(s) — pensez à enregistrer`);
+  };
+
+  const runLangProof = async () => {
+    setEnrichBusy(true);
+    try {
+      const site = values["s1.sites_web"] || dossier.oqlf_data?.site_web || "";
+      const { data } = await api.post(`/dossiers/${dossier.id}/language-proof`, { site_url: site });
+      setProposals(data.proposals || []);
+      setEnrichMeta({ site_used: [], warnings: data.warnings || [], evidence: data.evidence || [] });
+      if (!(data.proposals || []).length && !(data.evidence || []).length) toast.info("Aucune preuve générée");
+      else toast.success("Preuve linguistique générée et jointe au dossier");
+    } catch (e) {
+      toast.error("Évaluation de la langue impossible");
+    } finally { setEnrichBusy(false); }
+  };
+
+  const viewProof = async (docId) => {
+    try {
+      const resp = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
+      window.open(URL.createObjectURL(resp.data), "_blank");
+    } catch { toast.error("Capture indisponible"); }
   };
 
   const employes = Number(values["s4.employes_quebec"] ?? dossier.nb_employes_quebec ?? 0);
@@ -128,6 +149,10 @@ export function Module1Form({ dossier, onSaved }) {
               className="border-emerald-300 text-emerald-800 hover:bg-emerald-50">
               <Sparkles size={15} className="mr-1" /> {enrichBusy ? "Recherche…" : "Pré-remplir par recherche Web"}
             </Button>
+            <Button size="sm" variant="outline" onClick={runLangProof} disabled={enrichBusy} data-testid="module1-langproof-button"
+              className="border-blue-300 text-blue-800 hover:bg-blue-50">
+              <Camera size={15} className="mr-1" /> Évaluer la langue + preuve
+            </Button>
             <Button size="sm" variant="outline" onClick={exportPdf} data-testid="export-pdf-module1-button">
               <FileDown size={15} className="mr-1" /> Export PDF
             </Button>
@@ -140,7 +165,7 @@ export function Module1Form({ dossier, onSaved }) {
 
         {proposals !== null && (
           <WebEnrichPanel proposals={proposals} meta={enrichMeta}
-            onApply={applyProposals} onClose={() => setProposals(null)} />
+            onApply={applyProposals} onClose={() => setProposals(null)} onViewProof={viewProof} />
         )}
 
         <Card className="p-6" data-testid={`m1-section-${active.id}`}>

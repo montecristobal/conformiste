@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Check, X, Sparkles, Globe, AlertTriangle } from "lucide-react";
+import { Check, X, Sparkles, Globe, AlertTriangle, Image as ImageIcon } from "lucide-react";
 
-export function WebEnrichPanel({ proposals, meta, onApply, onClose }) {
+export function WebEnrichPanel({ proposals, meta, onApply, onClose, onViewProof }) {
   const [accepted, setAccepted] = useState(() =>
     Object.fromEntries(proposals.map((_, i) => [i, true]))
   );
@@ -42,6 +42,28 @@ export function WebEnrichPanel({ proposals, meta, onApply, onClose }) {
           <AlertTriangle size={13} /> {w}
         </div>
       ))}
+
+      {(meta?.evidence || []).length > 0 && (
+        <div className="space-y-2" data-testid="enrich-evidence">
+          <p className="text-xs font-semibold text-slate-700">Preuves jointes au dossier (captures d'écran)</p>
+          {meta.evidence.map((e, i) => (
+            <div key={i} data-testid={`evidence-${i}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+              <span className={`rounded-full px-2 py-0.5 font-semibold ${e.is_french === true ? "bg-emerald-100 text-emerald-700" : e.is_french === false ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"}`}>
+                {e.is_french === true ? "Français" : e.is_french === false ? "Autre langue" : "Indéterminé"}
+              </span>
+              <span className="text-slate-500">{e.kind === "site" ? "Site Web" : "Média social"}</span>
+              <span className="truncate max-w-[240px] text-slate-600" title={e.url}>{e.url}</span>
+              {typeof e.confidence === "number" && <span className="text-slate-400">({Math.round(e.confidence * 100)}%)</span>}
+              {e.document_id && (
+                <button onClick={() => onViewProof?.(e.document_id)} data-testid={`evidence-view-${i}`}
+                  className="ml-auto flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-600 hover:bg-slate-200">
+                  <ImageIcon size={12} /> Voir la capture
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {proposals.length === 0 ? (
         <p className="text-sm text-slate-500" data-testid="enrich-empty">Aucune proposition n'a pu être établie à partir des sources disponibles.</p>
