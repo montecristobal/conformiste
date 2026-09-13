@@ -118,6 +118,12 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
   1. **Service Web du Registraire (RUE/CIDREQ)** — temps réel, fiable ; nécessite une entente + identifiants/certificat via le MCN (Ministère de la Cybersécurité et du Numérique). Une fois obtenus : je remplace `req_lookup.simulate_req` par un client HTTP authentifié (module `req_client.py`) avec la démo en repli.
   2. **Données ouvertes Données Québec** (ZIP 225 Mo, 6 CSV, bimensuel, NEQ = clé) — licence CC BY-NC-SA (non commerciale) et SANS noms/adresses de personnes physiques/administrateurs. J'ingère les CSV dans MongoDB (index NEQ) et interroge localement.
 - Le scraping du site public renvoie 403 depuis notre serveur (non viable).
+
+## Implémenté (2026-06 — itération 10, Module Entrevue guidée)
+- **Module Entrevue guidé (style ImpôtExpert)** pour l'analyse linguistique (Module 1) : parcours **section par section** qui collecte toutes les infos restantes auprès du responsable, confirme/corrige les valeurs pré-remplies (recherche Web / preuve), avec barre de progression, navigation Précédent/Suivant (auto-enregistrement silencieux), et une **étape de Révision** (par section + boutons Modifier) avant « Terminer et enregistrer ».
+- Bascule de mode **Entrevue guidée / Formulaire complet** (même état, même sauvegarde, même schéma `MODULE1_SECTIONS` + `FieldRenderer`).
+- Vérifié : testing agent frontend 100% (mode par défaut entrevue, navigation, saisie persistée, bascule de mode, révision, finish + persistance après reload, régression enrich/langproof OK). Correctif : suppression du cumul de toasts (auto-save silencieux).
+- ⚠️ Voie 2 REQ (données ouvertes) : **non réalisable depuis le pod** — download gouv.qc.ca 403, datastore Données Québec non exploitable (HTML). Voie 1 (Service Web MCN) reste ouverte sur fourniture d'identifiants.
 - UX : marquer « modifications non enregistrées » après un auto-fetch (sinon données REQ perdues si l'utilisateur quitte sans enregistrer).
 - Design : remplacer les inputs date natifs (att_date, « date limite légale ») par le Calendar shadcn au format jj/mm/aaaa ; contraste du panneau REQ.
 - Paiements Stripe (PRO/SOLO) — toujours P0 en attente.

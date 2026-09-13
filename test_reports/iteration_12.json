@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only testing of Module 1 wizard (Entrevue guidée) on dossier 2a62630c-ef53-4938-80d9-9879858ae5fc. All specified scenarios pass: entrevue mode by default, progress banner, step title, Prev disabled at step 1, Next navigation with title/progress change, Prev returns to step 1, value entered in a text field persists across navigation, mode toggle (form vs entrevue) works, regression buttons/social-urls present in form mode, review step reached after N=12 clicks with 12 review rows and per-section Modifier buttons, Modifier returns to correct section, Terminer et enregistrer triggers 'Module 1 enregistré' toast, and after full reload the entrevue mode is default and the previously entered value is persisted.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Module1 wizard toast behavior", "issues": ["Auto-save fires on every 'Suivant' click producing multiple 'Module 1 enregistré' toasts stacked (observed 4). Consider silent auto-save on Suivant and only toast on explicit 'Terminer et enregistrer' / 'Enregistrer'."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional/minor) Silence toast during auto-save on 'Suivant'; keep toast only on manual Enregistrer / Terminer et enregistrer to avoid toast spam."
+  ],
+  "critical_code_review_comments": [
+    "Module1Form.jsx: save() is invoked on every 'Suivant' click and shows a success toast each time — leads to toast pile-up during wizard flow. Add a silent flag or debounce.",
+    "sectionCompletion divides by keys.length without guarding against empty sections (fine today but fragile if a section has 0 fields).",
+    "wizSection uses sections[Math.min(step, totalSteps-1)] but Card renders wizSection.fields directly — guard for empty sections array."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "vild@yuville.com / Conformiste2026! (confirmed working)",
+  "seed_data_creation": "None (only entered TEST_WIZ_<ts> string in Section 1 first text field; persisted correctly).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Module 1 wizard fully functional. Login redirects to /dashboard (not /dossiers) — use waits instead of wait_for_url('**/dossiers**'). N=12 sections for this dossier (38 employés < 100 so no annexe I; 2 établissements > 1 so annexe II likely included). Review rows use data-testid m1-review-<sid>; Modifier buttons use m1-review-edit-<sid>. Auto-save-on-Next produces stacked toasts — cosmetic.",
+  "rca of the issue": "N/A — no blocking issues."
+}
