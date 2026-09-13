@@ -1,0 +1,16 @@
+{
+  "summary": "E2E frontend test PASSED for NEW inline evidence thumbnails + manual social URL input + zoom overlay. Login vild@yuville.com → /dossier/2a62630c-... → tab-module1 → m1-nav-s1. Filled m1-s1-sites_web=https://www.lightspeedhq.com AND module1-social-urls=https://www.gitlab.com, clicked module1-langproof-button. Panel web-enrich-panel appeared in ~60s with TWO evidences. Both evidence-thumb-0 and evidence-thumb-1 rendered as real <img> tags with src=blob:https://... (authenticated blob preload). Clicking evidence-thumb-0 opened evidence-zoom overlay showing the large stamped screenshot (PREUVE CONFORMISTE banner with URL https://www.lightspeedhq.com | Langue détectée: autre langue — en (100%) | Capture horodatée: 2026-09-13 22:53 UTC clearly visible on the image). Clicking overlay closed it. Network confirmed 2× GET /api/v1/documents/{id}/download → 200. 2 proposals rendered (enrich-proposal-0/1). Clicked enrich-apply → nav to m1-nav-s8, radio m1-s8-e_site_web-opt-Non present. module1-save-button → toast 'Module 1 enregistré'. All new features working as specified.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "vild@yuville.com / Conformiste2026!",
+  "seed_data_creation": "None — used existing dossier 2a62630c-ef53-4938-80d9-9879858ae5fc.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New testids confirmed working: module1-social-urls (input), evidence-thumb-N (img with blob src), evidence-zoom (overlay). Stamping via screenshot.py stamp_proof adds banner with 'PREUVE CONFORMISTE', URL, langue détectée, and 'Capture horodatée: YYYY-MM-DD HH:MM UTC' — visible in overlay. Blob thumbnails preloaded via authenticated api.get(responseType='blob') → URL.createObjectURL in Module1Form.runLangProof.",
+  "rca of the issue": "N/A"
+}

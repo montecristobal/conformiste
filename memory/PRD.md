@@ -106,6 +106,18 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - **Recherche Web générale (Bing, sans clé)** intégrée au pré-remplissage : `enrichment.web_search` (décodage des URL de redirection Bing) + `discover_social_urls` ; le bouton « Pré-remplir par recherche Web » utilise désormais site officiel **+ résultats de recherche Web** (titres/extraits) pour mieux trouver dirigeants et médias sociaux quand le site est pauvre.
 - **Évaluation automatique de la langue + preuve** : bouton « Évaluer la langue + preuve » (Module 1) → `POST /api/v1/dossiers/{id}/language-proof`. Détection de langue déterministe (`langdetect`) du site Web et des médias sociaux (fr vs autre), **capture d'écran headless** (`screenshot.py` via google-chrome) stockée en object storage et **jointe au dossier** (documents `source=preuve-langue`), et propositions pour 8.14 (site en français) et 8.15 (médias sociaux + réseaux) avec accept/refuse. Panneau `WebEnrichPanel` enrichi d'un bloc « Preuves » + bouton « Voir la capture ».
   - Vérifié : backend curl (8.14='Non' pour site EN conf 1.0, captures PNG 1280×1600 téléchargeables et jointes) ; testing agent frontend 100% (preuve, badge langue, voir capture 200, proposition appliquée 8.14, persistance, régression enrich OK).
+
+## Implémenté (2026-06 — itération 9, vignettes + preuve sur mesure + horodatage)
+- **Vignettes inline** des captures directement dans le panneau (chargées en blob authentifié), avec **agrandissement au clic** (overlay), au lieu d'ouvrir un nouvel onglet.
+- **Preuve sur mesure** : champ `module1-social-urls` pour saisir manuellement des URL de médias sociaux à capturer quand la découverte auto n'en trouve pas (passées en `social_urls[]` à l'endpoint).
+- **Captures horodatées/signées** : `screenshot.stamp_proof` incruste un bandeau (PREUVE CONFORMISTE + URL + langue détectée + date/heure UTC, police LiberationSans-Bold) → preuve opposable jointe au dossier.
+  - Vérifié : testing agent frontend 100% (2 vignettes <img> blob, overlay zoom, bandeau visible dans l'aperçu, download 200, proposition appliquée, save OK).
+
+## Voie « vraie source REQ » (documentée, en attente d'identifiants)
+- Aucune API REST JSON publique temps réel. Deux voies officielles :
+  1. **Service Web du Registraire (RUE/CIDREQ)** — temps réel, fiable ; nécessite une entente + identifiants/certificat via le MCN (Ministère de la Cybersécurité et du Numérique). Une fois obtenus : je remplace `req_lookup.simulate_req` par un client HTTP authentifié (module `req_client.py`) avec la démo en repli.
+  2. **Données ouvertes Données Québec** (ZIP 225 Mo, 6 CSV, bimensuel, NEQ = clé) — licence CC BY-NC-SA (non commerciale) et SANS noms/adresses de personnes physiques/administrateurs. J'ingère les CSV dans MongoDB (index NEQ) et interroge localement.
+- Le scraping du site public renvoie 403 depuis notre serveur (non viable).
 - UX : marquer « modifications non enregistrées » après un auto-fetch (sinon données REQ perdues si l'utilisateur quitte sans enregistrer).
 - Design : remplacer les inputs date natifs (att_date, « date limite légale ») par le Calendar shadcn au format jj/mm/aaaa ; contraste du panneau REQ.
 - Paiements Stripe (PRO/SOLO) — toujours P0 en attente.

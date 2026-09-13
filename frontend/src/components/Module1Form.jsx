@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Save, FileDown, CheckCircle2, Info, Sparkles, Camera } from "lucide-react";
 import api, { API, downloadPdf } from "@/lib/api";
 import { WebEnrichPanel } from "@/components/WebEnrichPanel";
+import { Input } from "@/components/ui/input";
 
 export function Module1Form({ dossier, onSaved }) {
   const [values, setValues] = useState(dossier.module1_data || {});
@@ -16,6 +17,7 @@ export function Module1Form({ dossier, onSaved }) {
   const [enrichBusy, setEnrichBusy] = useState(false);
   const [proposals, setProposals] = useState(null);
   const [enrichMeta, setEnrichMeta] = useState({});
+  const [socialUrls, setSocialUrls] = useState("");
 
   useEffect(() => { setValues(dossier.module1_data || {}); }, [dossier.id]);
 
@@ -43,10 +45,22 @@ export function Module1Form({ dossier, onSaved }) {
     setEnrichBusy(true);
     try {
       const site = values["s1.sites_web"] || dossier.oqlf_data?.site_web || "";
-      const { data } = await api.post(`/dossiers/${dossier.id}/language-proof`, { site_url: site });
+      const socials = socialUrls.split(/[\n,;\s]+/).map((s) => s.trim()).filter(Boolean);
+      const { data } = await api.post(`/dossiers/${dossier.id}/language-proof`, {
+        site_url: site, social_urls: socials.length ? socials : undefined,
+      });
+      const ev = data.evidence || [];
+      await Promise.all(ev.map(async (e) => {
+        if (e.document_id) {
+          try {
+            const r = await api.get(`/documents/${e.document_id}/download`, { responseType: "blob" });
+            e.thumbUrl = URL.createObjectURL(r.data);
+          } catch { e.thumbUrl = null; }
+        }
+      }));
       setProposals(data.proposals || []);
-      setEnrichMeta({ site_used: [], warnings: data.warnings || [], evidence: data.evidence || [] });
-      if (!(data.proposals || []).length && !(data.evidence || []).length) toast.info("Aucune preuve générée");
+      setEnrichMeta({ site_used: [], warnings: data.warnings || [], evidence: ev });
+      if (!(data.proposals || []).length && !ev.length) toast.info("Aucune preuve générée");
       else toast.success("Preuve linguistique générée et jointe au dossier");
     } catch (e) {
       toast.error("Évaluation de la langue impossible");
@@ -160,6 +174,12 @@ export function Module1Form({ dossier, onSaved }) {
               className="bg-[#0F2B48] hover:bg-[#0F2B48]/90">
               <Save size={15} className="mr-1" /> {saving ? "Enregistrement…" : "Enregistrer"}
             </Button>
+          </div>
+          <div className="w-full flex flex-wrap items-center gap-2 pt-1">
+            <label className="text-xs text-slate-600 whitespace-nowrap">URL de médias sociaux à capturer (optionnel) :</label>
+            <Input value={socialUrls} onChange={(e) => setSocialUrls(e.target.value)} data-testid="module1-social-urls"
+              placeholder="https://linkedin.com/company/…  https://facebook.com/…"
+              className="flex-1 min-w-[220px] h-8 text-xs bg-white" />
           </div>
         </Card>
 

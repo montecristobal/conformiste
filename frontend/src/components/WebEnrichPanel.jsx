@@ -7,6 +7,7 @@ export function WebEnrichPanel({ proposals, meta, onApply, onClose, onViewProof 
   const [accepted, setAccepted] = useState(() =>
     Object.fromEntries(proposals.map((_, i) => [i, true]))
   );
+  const [zoom, setZoom] = useState(null);
   const toggle = (i, v) => setAccepted((a) => ({ ...a, [i]: v }));
   const setAll = (v) => setAccepted(Object.fromEntries(proposals.map((_, i) => [i, v])));
   const count = Object.values(accepted).filter(Boolean).length;
@@ -45,23 +46,33 @@ export function WebEnrichPanel({ proposals, meta, onApply, onClose, onViewProof 
 
       {(meta?.evidence || []).length > 0 && (
         <div className="space-y-2" data-testid="enrich-evidence">
-          <p className="text-xs font-semibold text-slate-700">Preuves jointes au dossier (captures d'écran)</p>
-          {meta.evidence.map((e, i) => (
-            <div key={i} data-testid={`evidence-${i}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs">
-              <span className={`rounded-full px-2 py-0.5 font-semibold ${e.is_french === true ? "bg-emerald-100 text-emerald-700" : e.is_french === false ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"}`}>
-                {e.is_french === true ? "Français" : e.is_french === false ? "Autre langue" : "Indéterminé"}
-              </span>
-              <span className="text-slate-500">{e.kind === "site" ? "Site Web" : "Média social"}</span>
-              <span className="truncate max-w-[240px] text-slate-600" title={e.url}>{e.url}</span>
-              {typeof e.confidence === "number" && <span className="text-slate-400">({Math.round(e.confidence * 100)}%)</span>}
-              {e.document_id && (
-                <button onClick={() => onViewProof?.(e.document_id)} data-testid={`evidence-view-${i}`}
-                  className="ml-auto flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-600 hover:bg-slate-200">
-                  <ImageIcon size={12} /> Voir la capture
-                </button>
-              )}
-            </div>
-          ))}
+          <p className="text-xs font-semibold text-slate-700">Preuves jointes au dossier (captures d'écran horodatées)</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {meta.evidence.map((e, i) => (
+              <div key={i} data-testid={`evidence-${i}`} className="rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                  <span className={`rounded-full px-2 py-0.5 font-semibold ${e.is_french === true ? "bg-emerald-100 text-emerald-700" : e.is_french === false ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"}`}>
+                    {e.is_french === true ? "Français" : e.is_french === false ? "Autre langue" : "Indéterminé"}
+                  </span>
+                  <span className="text-slate-500">{e.kind === "site" ? "Site Web" : "Média social"}</span>
+                  {typeof e.confidence === "number" && <span className="text-slate-400">({Math.round(e.confidence * 100)}%)</span>}
+                </div>
+                <p className="truncate text-slate-600 mb-1.5" title={e.url}>{e.url}</p>
+                {e.thumbUrl ? (
+                  <img src={e.thumbUrl} alt={`Capture ${e.url}`} data-testid={`evidence-thumb-${i}`}
+                    onClick={() => setZoom(e.thumbUrl)}
+                    className="w-full h-44 object-cover object-top rounded border border-slate-200 cursor-zoom-in hover:opacity-90 transition-opacity" />
+                ) : e.document_id ? (
+                  <button onClick={() => onViewProof?.(e.document_id)} data-testid={`evidence-view-${i}`}
+                    className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-600 hover:bg-slate-200">
+                    <ImageIcon size={12} /> Voir la capture
+                  </button>
+                ) : (
+                  <span className="text-slate-400">Capture indisponible</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -109,6 +120,12 @@ export function WebEnrichPanel({ proposals, meta, onApply, onClose, onViewProof 
             </Button>
           </div>
         </>
+      )}
+
+      {zoom && (
+        <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4" data-testid="evidence-zoom" onClick={() => setZoom(null)}>
+          <img src={zoom} alt="Capture agrandie" className="max-h-[92vh] max-w-[92vw] rounded shadow-2xl" />
+        </div>
       )}
     </Card>
   );

@@ -495,7 +495,7 @@ async def language_proof(dossier_id: str, body: LangProofIn,
                          user: dict = Depends(get_current_user)):
     d = await get_owned_dossier(dossier_id, user)
     from enrichment import detect_language, discover_social_urls
-    from screenshot import capture_screenshot
+    from screenshot import capture_screenshot, stamp_proof
     from analysis import fetch_url_text as _fetch, UrlValidationError as _UVE
     oqlf = d.get("oqlf_data", {}) or {}
     m1 = d.get("module1_data", {}) or {}
@@ -523,6 +523,18 @@ async def language_proof(dossier_id: str, body: LangProofIn,
         doc_id = None
         try:
             png = await run_in_threadpool(capture_screenshot, url)
+            if lang.get("is_french") is None:
+                lang_label = "indéterminée"
+            else:
+                cf = f" ({int(lang['confidence'] * 100)}%)" if lang.get("confidence") else ""
+                lang_label = f"{'français' if lang['is_french'] else 'autre langue'} — {lang['lang']}{cf}"
+            ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            stamp_lines = [
+                "PREUVE CONFORMISTE — Analyse de la situation linguistique (Charte de la langue française)",
+                f"URL : {url}",
+                f"Langue détectée : {lang_label}    |    Capture horodatée : {ts}",
+            ]
+            png = await run_in_threadpool(stamp_proof, png, stamp_lines)
             path = f"{APP_NAME}/preuves/{user['id']}/{uuid.uuid4()}.png"
             res = await run_in_threadpool(put_object, path, png, "image/png")
             doc = {

@@ -9,6 +9,13 @@ import tempfile
 import logging
 
 from analysis import _validate_public_url
+from io import BytesIO
+from datetime import datetime, timezone
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except Exception:  # pragma: no cover
+    Image = None
 
 logger = logging.getLogger("conformiste.screenshot")
 
@@ -43,3 +50,50 @@ def capture_screenshot(url: str, timeout: int = 35) -> bytes:
             raise RuntimeError("Capture d'écran impossible")
         with open(out, "rb") as f:
             return f.read()
+
+
+def _font(size):
+    import glob
+    patterns = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/**/DejaVuSans*.ttf",
+        "/usr/share/fonts/**/LiberationSans*.ttf",
+        "/usr/share/fonts/**/NotoSans*.ttf",
+        "/usr/share/fonts/**/Arimo*.ttf",
+        "/usr/share/fonts/**/*.ttf",
+    ]
+    for pat in patterns:
+        for p in sorted(glob.glob(pat, recursive=True)):
+            try:
+                return ImageFont.truetype(p, size)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+
+def stamp_proof(png_bytes: bytes, lines) -> bytes:
+    """Incruste un bandeau d'authenticité (date + URL + langue) en haut de la capture."""
+    if not Image:
+        return png_bytes
+    try:
+        img = Image.open(BytesIO(png_bytes)).convert("RGB")
+    except Exception:
+        return png_bytes
+    W, H = img.size
+    pad, lh = 16, 30
+    band = pad * 2 + lh * len(lines)
+    canvas = Image.new("RGB", (W, H + band), (255, 255, 255))
+    banner = Image.new("RGB", (W, band), (15, 43, 72))  # #0F2B48
+    canvas.paste(banner, (0, 0))
+    canvas.paste(img, (0, band))
+    draw = ImageDraw.Draw(canvas)
+    font = _font(21)
+    y = pad
+    for i, ln in enumerate(lines):
+        draw.text((pad, y), ln, fill=(255, 255, 255) if i == 0 else (200, 214, 230), font=font)
+        y += lh
+    # trait de séparation
+    draw.line([(0, band - 1), (W, band - 1)], fill=(212, 160, 23), width=3)
+    out = BytesIO()
+    canvas.save(out, format="PNG")
+    return out.getvalue()
