@@ -1,0 +1,23 @@
+{
+  "summary": "Frontend-only test of Module 1 (Analyse linguistique). Verified inscription→module1 pre-filling (Sections 1/2/4) and Annexe I inclusion in guided interview & sidebar for 120-employé dossier.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Tab switch (tab-module1) uses window.confirm() when dirtyRef is true (StagePanel triggers dirty on load) — this can block programmatic navigation and confused testing; consider only marking dirty on real user edits, not on mount.",
+    "Module1Form: useEffect that runs prefill depends only on dossier.id — if oqlf_data updates without id change, prefill won't refresh (edge case)."
+  ],
+  "updated_files": [],
+  "success_rate": {"frontend": "100%"},
+  "test_credentials": "vild@yuville.com / Conformiste2026! (from review request)",
+  "seed_data_creation": "None; dossier 2a62630c-... was pre-seeded with oqlf_data (120 employés, 2 étab, Nadia Damiani) and empty module1_data.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Confirmed: (1) Section 1 fields pre-filled from oqlf_data: nom='Camion Fuel inc.', autres_noms='Fuel Truck', sites_web='https://example.com', neq='1140000999', adresse='2480 rue Senkus', ville='LaSalle', code_postal='H8N 2X9'. (2) Section 2 pre-filled: civilite=Mme, prenom=Nadia, nom=Damiani, titre=Présidente, courriel=nadia@ex.com, telephone=514-375-3050. (3) Section 4: employes_quebec=120, etablissements=2, gestion_admin='Oui entièrement'. (4) Guided interview shows 13 steps ('Étape X sur 13'), step 12 titled 'Annexe I — Comité de francisation' present because employés≥100. (5) Formulaire complet sidebar contains m1-nav-annexe1 and m1-nav-s4 (60%). (6) Review shows 71 remaining questions (as expected — s5..s11 not pre-fillable from OQLF inscription). Note: tab switching requires accepting the window.confirm dialog because dirtyRef is toggled by StagePanel on mount; tests must attach a dialog handler.",
+  "rca of the issue": "N/A — no bugs found."
+}

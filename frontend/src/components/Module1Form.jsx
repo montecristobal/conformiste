@@ -9,6 +9,56 @@ import api, { API, downloadPdf } from "@/lib/api";
 import { WebEnrichPanel } from "@/components/WebEnrichPanel";
 import { Input } from "@/components/ui/input";
 
+const _CIV = { "Madame": "Mme", "Monsieur": "M." };
+const _GADM = { "Oui": "Oui entièrement", "Non ou en partie seulement": "Non ou partiel" };
+
+function _splitVilleCp(s) {
+  if (!s) return [undefined, undefined];
+  const m = String(s).match(/([A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d)/);
+  const cp = m ? m[1] : undefined;
+  let ville = String(s).replace(m ? m[1] : "", "").replace(/\(Qu[ée]bec\)/i, "").replace(/[,;]+\s*$/, "").trim();
+  return [ville || undefined, cp];
+}
+
+// Reprend les renseignements saisis à l'inscription (OQLF) pour préremplir l'analyse linguistique.
+function inscriptionPrefill(oqlf) {
+  if (!oqlf) return {};
+  const [s1ville, s1cp] = _splitVilleCp(oqlf.etab_principal_ville_cp);
+  const [s2ville, s2cp] = _splitVilleCp(oqlf.resp_ville_cp);
+  const map = {
+    "s1.nom": oqlf.nom_entreprise,
+    "s1.autres_noms": oqlf.autres_noms,
+    "s1.sites_web": oqlf.site_web,
+    "s1.neq": oqlf.neq,
+    "s1.adresse": oqlf.etab_principal_adresse,
+    "s1.ville": s1ville,
+    "s1.code_postal": s1cp,
+    "s2.civilite": _CIV[oqlf.resp_civilite],
+    "s2.prenom": oqlf.resp_prenom,
+    "s2.nom": oqlf.resp_nom,
+    "s2.titre": oqlf.resp_titre,
+    "s2.courriel": oqlf.resp_courriel,
+    "s2.telephone": oqlf.resp_telephone,
+    "s2.poste": oqlf.resp_poste,
+    "s2.adresse": oqlf.resp_adresse,
+    "s2.ville": s2ville,
+    "s2.code_postal": s2cp,
+    "s3.activites": oqlf.activites_principales,
+    "s4.employes_quebec": oqlf.nb_employes_actuel,
+    "s4.etablissements": oqlf.nb_etablissements,
+    "s4.siege_quebec": oqlf.siege_au_quebec,
+    "s4.siege_ville": oqlf.siege_lieu,
+    "s4.gestion_admin": _GADM[oqlf.gere_admin],
+    "s4.gestion_admin_expl": oqlf.gere_admin_precision,
+    "s4.centre_recherche": oqlf.centre_recherche,
+    "s4.centre_domaines": oqlf.centre_recherche_domaines,
+    "s4.etab_hors_quebec": oqlf.etab_hors_quebec,
+  };
+  const out = {};
+  Object.entries(map).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") out[k] = v; });
+  return out;
+}
+
 export function Module1Form({ dossier, onSaved }) {
   const [values, setValues] = useState(dossier.module1_data || {});
   const [activeSection, setActiveSection] = useState("s1");
@@ -21,7 +71,11 @@ export function Module1Form({ dossier, onSaved }) {
   const [mode, setMode] = useState("entrevue");
   const [step, setStep] = useState(0);
 
-  useEffect(() => { setValues(dossier.module1_data || {}); }, [dossier.id]);
+  useEffect(() => {
+    const prefill = inscriptionPrefill(dossier.oqlf_data);
+    setValues({ ...prefill, ...(dossier.module1_data || {}) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dossier.id]);
 
   const runEnrich = async () => {
     setEnrichBusy(true);
