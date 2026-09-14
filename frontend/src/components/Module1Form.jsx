@@ -4,7 +4,7 @@ import { FieldRenderer } from "@/components/FieldRenderer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Save, FileDown, CheckCircle2, Info, Sparkles, Camera, ChevronLeft, ChevronRight } from "lucide-react";
+import { Save, FileDown, CheckCircle2, Info, Sparkles, Camera, ChevronLeft, ChevronRight, Mic } from "lucide-react";
 import api, { API, downloadPdf } from "@/lib/api";
 import { WebEnrichPanel } from "@/components/WebEnrichPanel";
 import { Input } from "@/components/ui/input";
@@ -70,6 +70,8 @@ export function Module1Form({ dossier, onSaved }) {
   const [socialUrls, setSocialUrls] = useState("");
   const [mode, setMode] = useState("entrevue");
   const [step, setStep] = useState(0);
+  const [amorceBusy, setAmorceBusy] = useState(false);
+  const [panelKind, setPanelKind] = useState("web");
 
   useEffect(() => {
     const prefill = inscriptionPrefill(dossier.oqlf_data);
@@ -79,6 +81,7 @@ export function Module1Form({ dossier, onSaved }) {
 
   const runEnrich = async () => {
     setEnrichBusy(true);
+    setPanelKind("web");
     try {
       const site = values["s1.sites_web"] || dossier.oqlf_data?.site_web || "";
       const { data } = await api.post(`/dossiers/${dossier.id}/module1/enrich`, { site_url: site });
@@ -97,8 +100,26 @@ export function Module1Form({ dossier, onSaved }) {
     if (n > 0) toast.success(`${n} champ(s) pré-rempli(s) — pensez à enregistrer`);
   };
 
+  const reportAmorce = async () => {
+    setAmorceBusy(true);
+    try {
+      const { data } = await api.get(`/dossiers/${dossier.id}/amorce/proposals`);
+      const props = data.proposals || [];
+      if (!props.length) {
+        toast.info((data.warnings && data.warnings[0]) || "Aucune réponse vocale à reporter");
+        return;
+      }
+      setPanelKind("amorce");
+      setProposals(props);
+      setEnrichMeta({ site_used: [], warnings: data.warnings || [] });
+    } catch (e) {
+      toast.error("Report de l'entrevue vocale impossible");
+    } finally { setAmorceBusy(false); }
+  };
+
   const runLangProof = async () => {
     setEnrichBusy(true);
+    setPanelKind("web");
     try {
       const site = values["s1.sites_web"] || dossier.oqlf_data?.site_web || "";
       const socials = socialUrls.split(/[\n,;\s]+/).map((s) => s.trim()).filter(Boolean);
@@ -216,6 +237,9 @@ export function Module1Form({ dossier, onSaved }) {
           <Button size="sm" variant="outline" onClick={runEnrich} disabled={enrichBusy} data-testid="module1-enrich-button" className="border-emerald-300 text-emerald-800 hover:bg-emerald-50">
             <Sparkles size={15} className="mr-1" /> {enrichBusy ? "Recherche…" : "Pré-remplir par recherche Web"}
           </Button>
+          <Button size="sm" variant="outline" onClick={reportAmorce} disabled={amorceBusy} data-testid="module1-amorce-report" className="border-indigo-300 text-indigo-800 hover:bg-indigo-50">
+            <Mic size={15} className="mr-1" /> {amorceBusy ? "Report…" : "Reporter l'entrevue vocale"}
+          </Button>
           <Button size="sm" variant="outline" onClick={runLangProof} disabled={enrichBusy} data-testid="module1-langproof-button" className="border-blue-300 text-blue-800 hover:bg-blue-50">
             <Camera size={15} className="mr-1" /> Évaluer la langue + preuve
           </Button>
@@ -239,7 +263,9 @@ export function Module1Form({ dossier, onSaved }) {
     <div className="space-y-4">
       {actionBar}
       {proposals !== null && (
-        <WebEnrichPanel proposals={proposals} meta={enrichMeta} onApply={applyProposals} onClose={() => setProposals(null)} onViewProof={viewProof} />
+        <WebEnrichPanel proposals={proposals} meta={enrichMeta} onApply={applyProposals} onClose={() => setProposals(null)} onViewProof={viewProof}
+          title={panelKind === "amorce" ? "Réponses de l'entrevue vocale (amorce mobile)" : undefined}
+          subtitle={panelKind === "amorce" ? "Acceptez ou refusez chaque réponse transcrite et traduite en français. Seuls les champs acceptés seront reportés dans le Module 1." : undefined} />
       )}
 
       {mode === "entrevue" ? (

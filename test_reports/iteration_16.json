@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only testing of 'Report vocal → Module 1' feature. Logged in as PRO admin, opened dossier 2a62630c, navigated to Module 1 tab, clicked new 'Reporter l'entrevue vocale' button — Amorce accept/refuse panel opened with correct title, correct 2 proposals (employes_quebec=40 FR, pct_ca=70 EN), correct source and language notes. Refuse+Apply works, toast confirms 1 field pre-filled (only accepted proposal). Regression check: Web enrich button opens same panel with original 'Propositions issues de la recherche Web' title (not carried over from amorce). All acceptance criteria met.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "DossierDetail tab switching", "issues": ["window.confirm dialog appears even without user edits when switching tabs — dirtyRef.current gets set to true on initial StagePanel mount. Not a blocker (Playwright auto-accepts) but harms UX. Consider tracking dirty only after real user input."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DossierDetail confirmLeave() dialog fires spuriously on tab-switch; investigate onDirtyChange getting called during initial hydration in StagePanel.",
+    "WebEnrichPanel title 'Réponses de l'entrevue vocale (amorce mobile)' and 'Propositions issues de la recherche Web' correctly toggle via panelKind state — good pattern."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO)",
+  "seed_data_creation": "None (used existing dossier 2a62630c-ef53-4938-80d9-9879858ae5fc)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Feature 'Report vocal → Module 1' works end-to-end. Note: tab switching in DossierDetail triggers a spurious 'unsaved changes' confirm() dialog when only navigating between tabs after loading StagePanel — Playwright script must attach a dialog handler that auto-accepts. Panel content is rendered via WebEnrichPanel; the title element is not an h2/h3 but a text node in a header container — use panel.innerText or a specific selector rather than h2/h3.",
+  "verified_flow": [
+    "Login PRO OK",
+    "GET /dossier/{id} OK",
+    "Tab tab-module1 activates Module 1 form",
+    "module1-amorce-report opens WebEnrichPanel with amorce kind",
+    "Panel title: 'Réponses de l'entrevue vocale (amorce mobile)'",
+    "enrich-proposal-0 = 'Nombre d'employés au Québec' 40 — Source: entrevue vocale (amorce) — 'Réponse orale (french)'",
+    "enrich-proposal-1 = '% du chiffre d'affaires au Québec' 70 — Source: entrevue vocale (amorce) — 'Réponse orale (english)'",
+    "enrich-refuse-0 + enrich-apply => panel closes, toast: '1 champ(s) pré-rempli(s) — pensez à enregistrer'",
+    "m1-mode-form switch works, Formulaire complet displayed",
+    "module1-enrich-button reopens panel with title 'Propositions issues de la recherche Web' (regression OK)"
+  ]
+}

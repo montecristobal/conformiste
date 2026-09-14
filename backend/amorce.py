@@ -7,6 +7,7 @@ CONSERVE l'audio original intact (stocké comme document du dossier).
 """
 import os
 import io
+import re
 import logging
 
 from emergentintegrations.llm.openai import OpenAISpeechToText
@@ -97,3 +98,62 @@ async def translate_to_french(text: str, question: str) -> str:
     except Exception as e:
         logger.warning(f"amorce translate failed: {e}")
         return text
+
+
+# Report des réponses vocales vers le Module 1 (analyse linguistique).
+# On mappe chaque question de l'amorce vers la clé exacte du schéma Module 1
+# et on extrait une valeur exploitable selon le type de champ.
+AMORCE_M1_MAP = {
+    "q1_neq": {"key": "s1.neq", "label": "NEQ", "kind": "neq"},
+    "q2_site": {"key": "s1.sites_web", "label": "Site(s) web", "kind": "url"},
+    "q3_employes": {"key": "s4.employes_quebec", "label": "Nombre d'employés au Québec", "kind": "int"},
+    "q4_ca_pct": {"key": "s3.pct_ca", "label": "% du chiffre d'affaires au Québec", "kind": "percent"},
+    "q5_etablissements": {"key": "s4.etablissements", "label": "Nombre d'établissements au Québec", "kind": "int"},
+}
+
+
+def _extract_value(kind: str, text: str):
+    t = (text or "").strip()
+    if not t:
+        return None
+    if kind == "neq":
+        m = re.search(r"\d[\d\s.\-]{7,}\d", t)
+        if m:
+            digits = re.sub(r"\D", "", m.group(0))
+            if 9 <= len(digits) <= 10:
+                return digits
+        return None
+    if kind == "int":
+        m = re.search(r"\d[\d\s]*", t)
+        if m:
+            d = re.sub(r"\D", "", m.group(0))
+            return int(d) if d else None
+        return None
+    if kind == "percent":
+        # première valeur en pourcentage (portion Québec, énoncée en premier).
+        m = re.search(r"(\d{1,3})\s*%", t) or re.search(r"(\d{1,3})", t)
+        return int(m.group(1)) if m else None
+    if kind == "url":
+        m = re.search(r"(https?://[^\s]+|(?:www\.)?[\w-]+\.[a-z]{2,}(?:/[^\s]*)?)", t, re.I)
+        return m.group(0).rstrip(".,;") if m else None
+    return t or None
+
+
+def build_module1_proposals(answers: dict):
+    """À partir des réponses vocales stockées, produit des propositions accept/refus."""
+    out = []
+    for qkey, spec in AMORCE_M1_MAP.items():
+        a = (answers or {}).get(qkey)
+        if not a:
+            continue
+        text = a.get("transcript_fr") or a.get("transcript_original") or ""
+        val = _extract_value(spec["kind"], text)
+        if val in (None, ""):
+            continue
+        lang = a.get("lang") or "?"
+        out.append({
+            "key": spec["key"], "label": spec["label"], "value": val,
+            "source": "entrevue vocale (amorce)", "confidence": None,
+            "note": f"Réponse orale ({lang}) : « {text} »",
+        })
+    return out

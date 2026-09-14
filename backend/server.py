@@ -1009,6 +1009,19 @@ async def revoke_amorce_session(dossier_id: str, user: dict = Depends(get_curren
     return {"ok": True}
 
 
+@api.get("/dossiers/{dossier_id}/amorce/proposals")
+async def amorce_module1_proposals(dossier_id: str, user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    s = await db.amorce_sessions.find_one(
+        {"dossier_id": dossier_id, "answers": {"$exists": True, "$ne": {}}},
+        sort=[("created_at", -1)])
+    if not s or not s.get("answers"):
+        return {"proposals": [], "warnings": ["Aucune réponse vocale d'amorce n'est disponible pour ce dossier."]}
+    proposals = amorce.build_module1_proposals(s.get("answers"))
+    await audit(dossier_id, user, "Report de l'entrevue vocale (amorce) vers le Module 1")
+    return {"proposals": proposals, "warnings": []}
+
+
 # ---- routes publiques (téléphone, jeton dans l'URL, sans login)
 @api.get("/amorce/{session_id}")
 async def amorce_public_info(session_id: str):

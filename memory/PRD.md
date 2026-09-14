@@ -151,5 +151,10 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Champs de référence externe renseignés (external_citation, reference_date 2025-06-01, retrieved_at). Vérifié : `GET /api/v1/catalogue/themes` retourne A1–A5 validés + note_portee A1.
 
 ## Ordre convenu pour la suite (demande utilisateur)
-1. Report vocal (réponses Amorce transcrites) → préremplissage Module 1 via patron accepter/refuser.
+1. ✅ Report vocal (réponses Amorce transcrites) → préremplissage Module 1 via patron accepter/refuser — **FAIT** (itération 14).
 2. Phase 2 — indices (Francisabilité, Conformité, Risque) + diagnostic EP 3 états.
+
+## Implémenté (2026-06 — itération 14, report vocal → Module 1)
+- Bouton « Reporter l'entrevue vocale » (Module 1, `module1-amorce-report`) : `GET /api/v1/dossiers/{id}/amorce/proposals` récupère la dernière session d'amorce ayant des réponses et mappe chaque question vers la clé exacte du schéma Module 1 (q1→s1.neq, q2→s1.sites_web, q3→s4.employes_quebec, q4→s3.pct_ca, q5→s4.etablissements) avec **extraction structurée** (NEQ 9-10 chiffres, entier, pourcentage QC = 1er nombre, URL/domaine).
+- Réutilise le **patron accepter/refuser** (`WebEnrichPanel`, nouvelles props title/subtitle) : source « entrevue vocale (amorce) » + note affichant la langue détectée et la transcription française. Seuls les champs acceptés remplissent le Module 1.
+- Vérifié : backend curl (proposals corrects : employés 40, %CA QC 70 depuis audio EN traduit) + testing agent frontend **100 %** (ouverture panneau, titre correct, refuser+appliquer, régression titre recherche Web OK).

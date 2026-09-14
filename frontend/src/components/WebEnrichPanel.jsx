@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Check, X, Sparkles, Globe, AlertTriangle, Image as ImageIcon } from "lucide-react";
 
-export function WebEnrichPanel({ proposals, meta, onApply, onClose, onViewProof }) {
+export function WebEnrichPanel({ proposals, meta, onApply, onClose, onViewProof, title, subtitle }) {
   const [accepted, setAccepted] = useState(() =>
     Object.fromEntries(proposals.map((_, i) => [i, true]))
   );
@@ -24,8 +24,8 @@ export function WebEnrichPanel({ proposals, meta, onApply, onClose, onViewProof 
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-emerald-700" />
           <div>
-            <h4 className="font-display font-bold text-[#0F2B48]">Propositions issues de la recherche Web</h4>
-            <p className="text-xs text-slate-500">Acceptez ou refusez chaque proposition. Seuls les champs acceptés seront pré-remplis.</p>
+            <h4 className="font-display font-bold text-[#0F2B48]">{title || "Propositions issues de la recherche Web"}</h4>
+            <p className="text-xs text-slate-500">{subtitle || "Acceptez ou refusez chaque proposition. Seuls les champs acceptés seront pré-remplis."}</p>
           </div>
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-600" data-testid="enrich-close" aria-label="Fermer">
