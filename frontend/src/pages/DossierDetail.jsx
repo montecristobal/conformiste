@@ -17,6 +17,7 @@ import { Module2Programme } from "@/components/Module2Programme";
 import { AnalyseTab } from "@/components/AnalyseTab";
 import { AuditLog } from "@/components/AuditLog";
 import { OqlfInscriptionForm } from "@/components/OqlfInscriptionForm";
+import { AmorcePanel } from "@/components/AmorcePanel";
 import { toast } from "sonner";
 import { ArrowLeft, Send, MessageSquarePlus, Calendar, FileDown } from "lucide-react";
 
@@ -159,6 +160,7 @@ export default function DossierDetail() {
       <Tabs value={tab} onValueChange={(v) => { if (confirmLeave()) setTab(v); }}>
         <TabsList className="mb-4">
           <TabsTrigger value="apercu" data-testid="tab-apercu">Étape & aperçu</TabsTrigger>
+          <TabsTrigger value="amorce" data-testid="tab-amorce">Amorce (mobile)</TabsTrigger>
           <TabsTrigger value="module1" data-testid="tab-module1">Module 1 — Analyse</TabsTrigger>
           <TabsTrigger value="module2" data-testid="tab-module2">Module 2 — Programme</TabsTrigger>
           <TabsTrigger value="analyse" data-testid="tab-analyse">Analyse & non-conformités</TabsTrigger>
@@ -167,6 +169,9 @@ export default function DossierDetail() {
 
         <TabsContent value="apercu">
           <StagePanel dossier={dossier} stageKey={activeStage} onUpdated={setDossier} onDirtyChange={(b) => { dirtyRef.current = b; }} />
+        </TabsContent>
+        <TabsContent value="amorce">
+          <AmorcePanel dossier={dossier} />
         </TabsContent>
         <TabsContent value="module1">
           <Module1Form dossier={dossier} onSaved={setDossier} />

@@ -131,3 +131,16 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - UX : marquer « modifications non enregistrées » après un auto-fetch (sinon données REQ perdues si l'utilisateur quitte sans enregistrer).
 - Design : remplacer les inputs date natifs (att_date, « date limite légale ») par le Calendar shadcn au format jj/mm/aaaa ; contraste du panneau REQ.
 - Paiements Stripe (PRO/SOLO) — toujours P0 en attente.
+
+## Implémenté (2026-06 — itération 12, Amorce mobile Phase 1 : couplage QR + entrevue vocale)
+- **Approche légère native** (uploads HTTP + clé Emergent, aucune dépendance externe).
+- **Couplage QR** : onglet « Amorce (mobile) » du dossier → bouton « Générer un lien QR » (`POST /api/v1/dossiers/{id}/amorce/session`). Jeton **haute entropie** (`secrets.token_urlsafe(32)`), expiration **30 min**, **invalidé dès la complétion**, révocable (`.../session/revoke`), une seule session active par dossier. Panneau `AmorcePanel.jsx` : QR (`qrcode.react`), lien, compte à rebours, **polling temps réel ~4 s** de l'état (réponses/photos/déclaration).
+- **Page mobile publique** `/m/:sessionId` (`MobileAmorce.jsx`, aucun login, axios public) : capture **photos** par 7 catégories (Façade, Enseigne, Affichage intérieur, Poste de travail/écran, Offre d'emploi affichée — avec case explicite « aucune offre active », Documents, Autre) et **5 questions vocales** (texte exact fourni : NEQ, site web [facultatif], employés QC, % CA QC/hors QC [approx.], établissements QC). **Retry réseau** (3 tentatives) sur chaque envoi photo/audio.
+- **Transcription + traduction** (`amorce.py`) : Whisper `whisper-1` transcrit dans la **langue parlée** (verbose_json → langue détectée), GPT 5.4 **traduit/normalise en français** ; **audio original conservé** comme document du dossier. Photos/audio joints au dossier (`documents` source=`amorce-photo` / `amorce-audio`).
+- **Audit** : ouverture de session et complétion journalisées dans le journal d'audit du dossier.
+- Vérifié : backend curl (session CRUD, info publique, photo, déclaration, transcription réelle EN→FR et FR→FR corrects) ; testing agent frontend **100 % (7/7 flux)** — génération QR, page mobile sans redirection /login, upload photo + compteur, déclaration, polling bureau, révocation, régénération.
+
+## Prochaines tâches
+- **Phase 2 — Tableaux de bord et indices (P0)** : écran d'ouverture du dossier montrant 3 indices (Francisabilité, Conformité, Risque) + diagnostic EP à 3 états, calculés à partir des données de l'Amorce ; formulaire Module 1 complet derrière un bouton « Compléter le dossier ». À tester isolément (partie la plus délicate).
+- Réutiliser le patron accepter/refuser (WebEnrichPanel) pour valider les réponses vocales transcrites lors de leur report dans le formulaire.
+- Paiements Stripe (PRO/SOLO) — P0.

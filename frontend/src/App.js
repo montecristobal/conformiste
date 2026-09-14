@@ -8,6 +8,7 @@ import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import ClientsPage from "@/pages/ClientsPage";
 import DossierDetail from "@/pages/DossierDetail";
+import MobileAmorce from "@/pages/MobileAmorce";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -35,6 +36,7 @@ function App() {
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
           <Route path="/clients" element={<Protected><ProOnly><ClientsPage /></ProOnly></Protected>} />
           <Route path="/dossier/:id" element={<Protected><DossierDetail /></Protected>} />
+          <Route path="/m/:sessionId" element={<MobileAmorce />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

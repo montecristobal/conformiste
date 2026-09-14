@@ -11,6 +11,7 @@ import uuid
 import base64
 import hmac
 import hashlib
+import secrets
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Any, Dict
 
@@ -32,6 +33,7 @@ from pdf_export import build_module1_pdf, build_module2_pdf
 from storage import put_object, get_object, init_storage, APP_NAME, MIME_TYPES
 import analysis
 import mailer
+import amorce
 
 # ---------------------------------------------------------------- DB / app
 mongo_url = os.environ["MONGO_URL"]
@@ -917,6 +919,197 @@ async def courriel_draft(dossier_id: str, module: int = Query(1),
             "pdf_path": pdf_path, "pdf_filename": pdf_filename}
 
 
+# ---------------------------------------------------------------- Amorce mobile (QR)
+AMORCE_TTL_MIN = 30
+MOBILE_ACTOR = {"email": "amorce-mobile", "account_type": "mobile"}
+
+
+class DeclarationIn(BaseModel):
+    no_job_posting: Optional[bool] = None
+
+
+def _amorce_effective_status(s: dict) -> str:
+    if s.get("status") in ("completed", "revoked"):
+        return s["status"]
+    try:
+        if datetime.fromisoformat(s["expires_at"]) < datetime.now(timezone.utc):
+            return "expired"
+    except Exception:
+        pass
+    return "active"
+
+
+def _amorce_public(s: dict, dossier_nom: str = "") -> dict:
+    return {
+        "session_id": s["id"],
+        "status": _amorce_effective_status(s),
+        "dossier_nom": dossier_nom or s.get("dossier_nom", ""),
+        "expires_at": s["expires_at"],
+        "questions": amorce.AMORCE_QUESTIONS,
+        "photo_categories": amorce.AMORCE_PHOTO_CATEGORIES,
+        "answers": s.get("answers", {}),
+        "answered_keys": list((s.get("answers") or {}).keys()),
+        "photos": s.get("photos", []),
+        "declarations": s.get("declarations", {}),
+    }
+
+
+async def _get_active_amorce(session_id: str) -> dict:
+    s = await db.amorce_sessions.find_one({"id": session_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Session d'amorce introuvable.")
+    st = _amorce_effective_status(s)
+    if st == "revoked":
+        raise HTTPException(status_code=410, detail="Ce lien a été révoqué.")
+    if st == "completed":
+        raise HTTPException(status_code=410, detail="Cette amorce est déjà complétée.")
+    if st == "expired":
+        raise HTTPException(status_code=410, detail="Ce lien a expiré. Demandez un nouveau code QR.")
+    return s
+
+
+@api.post("/dossiers/{dossier_id}/amorce/session")
+async def create_amorce_session(dossier_id: str, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    await db.amorce_sessions.update_many(
+        {"dossier_id": dossier_id, "status": "active"}, {"$set": {"status": "revoked"}})
+    now = datetime.now(timezone.utc)
+    token = secrets.token_urlsafe(32)
+    s = {
+        "id": token, "dossier_id": dossier_id, "owner_id": user["id"],
+        "dossier_nom": d.get("nom_entreprise", ""),
+        "status": "active",
+        "created_at": now.isoformat(),
+        "expires_at": (now + timedelta(minutes=AMORCE_TTL_MIN)).isoformat(),
+        "opened_at": None, "completed_at": None,
+        "photos": [], "answers": {}, "declarations": {},
+    }
+    await db.amorce_sessions.insert_one(dict(s))
+    await audit(dossier_id, user, "Amorce mobile — génération d'un lien QR")
+    out = _amorce_public(s, d.get("nom_entreprise", ""))
+    out["mobile_path"] = f"/m/{token}"
+    return out
+
+
+@api.get("/dossiers/{dossier_id}/amorce/session")
+async def get_amorce_session(dossier_id: str, user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    s = await db.amorce_sessions.find_one({"dossier_id": dossier_id}, sort=[("created_at", -1)])
+    if not s:
+        return {"status": "none"}
+    return _amorce_public(s)
+
+
+@api.post("/dossiers/{dossier_id}/amorce/session/revoke")
+async def revoke_amorce_session(dossier_id: str, user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    await db.amorce_sessions.update_many(
+        {"dossier_id": dossier_id, "status": "active"}, {"$set": {"status": "revoked"}})
+    await audit(dossier_id, user, "Amorce mobile — révocation du lien QR")
+    return {"ok": True}
+
+
+# ---- routes publiques (téléphone, jeton dans l'URL, sans login)
+@api.get("/amorce/{session_id}")
+async def amorce_public_info(session_id: str):
+    s = await db.amorce_sessions.find_one({"id": session_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Session d'amorce introuvable.")
+    if s.get("status") == "active" and not s.get("opened_at") and _amorce_effective_status(s) == "active":
+        await db.amorce_sessions.update_one(
+            {"id": session_id}, {"$set": {"opened_at": datetime.now(timezone.utc).isoformat()}})
+        await audit(s["dossier_id"], MOBILE_ACTOR, "Amorce mobile — session ouverte sur le téléphone")
+    return _amorce_public(s)
+
+
+@api.post("/amorce/{session_id}/photo")
+async def amorce_upload_photo(session_id: str, category: str = Query(...),
+                              file: UploadFile = File(...)):
+    s = await _get_active_amorce(session_id)
+    label = next((c["label"] for c in amorce.AMORCE_PHOTO_CATEGORIES if c["key"] == category), category)
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Photo trop volumineuse (maximum 15 Mo).")
+    ct = file.content_type or "image/jpeg"
+    ext = amorce.ext_from_content_type(ct, "jpg")
+    path = f"{APP_NAME}/amorce/{s['owner_id']}/{uuid.uuid4()}.{ext}"
+    res = await run_in_threadpool(put_object, path, data, ct)
+    doc = {
+        "id": str(uuid.uuid4()), "dossier_id": s["dossier_id"], "type": "file", "kind": "image",
+        "original_filename": f"Amorce — {label}", "storage_path": res["path"],
+        "content_type": ct, "size": res.get("size", len(data)), "url": None,
+        "source": "amorce-photo", "category": category, "analysis": None, "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.documents.insert_one(dict(doc))
+    entry = {"category": category, "label": label, "document_id": doc["id"],
+             "created_at": doc["created_at"]}
+    await db.amorce_sessions.update_one({"id": session_id}, {"$push": {"photos": entry}})
+    return {"ok": True, "document_id": doc["id"], "category": category, "label": label}
+
+
+@api.post("/amorce/{session_id}/audio")
+async def amorce_upload_audio(session_id: str, question_key: str = Query(...),
+                              file: UploadFile = File(...)):
+    s = await _get_active_amorce(session_id)
+    q = next((x for x in amorce.AMORCE_QUESTIONS if x["key"] == question_key), None)
+    if not q:
+        raise HTTPException(status_code=400, detail="Question inconnue.")
+    data = await file.read()
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Enregistrement trop volumineux (maximum 25 Mo).")
+    ct = file.content_type or "audio/webm"
+    ext = amorce.ext_from_content_type(ct, "webm")
+    path = f"{APP_NAME}/amorce/{s['owner_id']}/{uuid.uuid4()}.{ext}"
+    res = await run_in_threadpool(put_object, path, data, ct)
+    audio_doc = {
+        "id": str(uuid.uuid4()), "dossier_id": s["dossier_id"], "type": "file", "kind": "audio",
+        "original_filename": f"Amorce (audio) — {q['question'][:60]}", "storage_path": res["path"],
+        "content_type": ct, "size": res.get("size", len(data)), "url": None,
+        "source": "amorce-audio", "question_key": question_key, "analysis": None, "is_deleted": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.documents.insert_one(dict(audio_doc))
+
+    text, lang, warning = "", None, None
+    try:
+        text, lang = await amorce.transcribe_audio(data, f"audio.{ext}")
+    except Exception as e:
+        logger.warning(f"amorce transcription failed ({session_id}): {e}")
+        warning = "La transcription a échoué ; l'audio a été conservé. Vous pourrez saisir la réponse plus tard."
+    fr = await amorce.translate_to_french(text, q["question"]) if text else ""
+
+    answer = {
+        "question": q["question"], "field": q["field"],
+        "transcript_original": text, "lang": lang, "transcript_fr": fr,
+        "audio_document_id": audio_doc["id"], "optional": q.get("optional", False),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.amorce_sessions.update_one({"id": session_id}, {"$set": {f"answers.{question_key}": answer}})
+    return {"ok": True, "question_key": question_key, "transcript_original": text,
+            "lang": lang, "transcript_fr": fr, "warning": warning}
+
+
+@api.post("/amorce/{session_id}/declaration")
+async def amorce_declaration(session_id: str, body: DeclarationIn):
+    s = await _get_active_amorce(session_id)
+    upd = {}
+    if body.no_job_posting is not None:
+        upd["declarations.no_job_posting"] = body.no_job_posting
+    if upd:
+        await db.amorce_sessions.update_one({"id": session_id}, {"$set": upd})
+    return {"ok": True}
+
+
+@api.post("/amorce/{session_id}/complete")
+async def amorce_complete(session_id: str):
+    s = await _get_active_amorce(session_id)
+    await db.amorce_sessions.update_one({"id": session_id}, {"$set": {
+        "status": "completed", "completed_at": datetime.now(timezone.utc).isoformat()}})
+    await audit(s["dossier_id"], MOBILE_ACTOR, "Amorce mobile — session complétée depuis le téléphone")
+    return {"ok": True}
+
+
 # ---------------------------------------------------------------- notifications / rappels
 async def generate_reminders():
     dossiers = await db.dossiers.find({}).to_list(5000)
@@ -1000,6 +1193,8 @@ async def startup():
     await db.documents.create_index("dossier_id")
     await db.notifications.create_index([("dossier_id", 1), ("type", 1)], unique=True)
     await db.notifications.create_index("owner_id")
+    await db.amorce_sessions.create_index("dossier_id")
+    await db.amorce_sessions.create_index("id", unique=True)
     try:
         init_storage()
         logger.info("Stockage d'objets initialisé.")

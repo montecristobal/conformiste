@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend end-to-end validation of the 'Amorce mobile' feature. All critical flows PASS: PRO login, dossier open, switch to tab 'Amorce (mobile)', panel renders, QR + mobile link + countdown generated. Mobile URL /m/:sessionId opens in a FRESH context WITHOUT auth and does NOT redirect to /login. Mobile page displays dossier name in H1, 5 question cards and 7 photo categories. Photo upload for 'facade' produces the count badge. 'Aucune offre d'emploi' checkbox triggers /declaration and desktop reflects the note. Desktop polling (~4s) updates the 'amorce-cat-facade' badge with the count from the mobile upload. 'Révoquer le lien' switches panel to amorce-inactive with 'révoqué' message and reloaded mobile page shows amorce-done with revocation text. 'Nouveau lien' (amorce-regenerate) creates a fresh, DIFFERENT session URL. Audio flow via MediaRecorder skipped per instructions.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Cosmetic/spec-only: review-request enumerated question keys q2_secteur, q3_langues, q4_objets and photo cats menu/recu are not the actual keys returned by backend. Actual keys are q1_neq, q2_site, q3_employes, q4_ca_pct, q5_etablissements and categories facade, enseigne, affichage_interieur, poste_travail, offre_emploi, documents, autre. Count and structure (5 questions, 7 categories) is correct; only naming differs from the review spec. No user-visible impact.",
+    "Minor: on the dashboard, dossier rows sometimes don't navigate on a simple locator('text=...').click() (Radix-like clickable div, no <a href> wrapper). Cypress/Playwright had to fall back to direct URL. Consider wrapping the dossier row in an <a href> or attaching data-testid='dossier-row-{id}' as an accessible link for testability. Not blocking."
+  ],
+  "critical_code_review_comments": [
+    "MobileAmorce.jsx creates a public axios instance (const pub = axios.create({ baseURL: API })) that does not set withCredentials — correct choice since the endpoints are public and require no cookie/token.",
+    "AmorcePanel.jsx polls every 4s only when session.status === 'active' and also has a 1s clock interval for the countdown. Both are cleaned up on unmount. Good.",
+    "AmorcePanel.jsx builds the public URL from window.location.origin + '/m/' + session_id (no /api prefix) — correct for the SPA route; ingress will route non /api to the frontend."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100% (7/7 UI flows PASS)"},
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO admin, seeded)",
+  "seed_data_creation": "No new seed. Used existing dossier id 2a62630c-ef53-4938-80d9-9879858ae5fc (TEST_Analyse Inc.) belonging to the seeded PRO account.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Amorce mobile feature is fully working from a UI perspective. Steps tested: login PRO -> open dossier -> tab-amorce -> amorce-generate -> QR/mobile-link/countdown -> open mobile URL in new browser context (verified NO redirect to /login) -> h1 shows dossier name, 5 amorce-q-* and 7 amorce-photo-* cards render -> set_input_files on amorce-photo-input-facade shows amorce-photo-count-facade badge -> check amorce-no-job triggers /declaration -> desktop polling (~4s) reflects photo count in amorce-cat-facade and the 'aucune offre d'emploi active' note -> amorce-revoke sets amorce-inactive and mobile reload shows amorce-done with 'Ce lien a été révoqué.' -> amorce-regenerate produces a new distinct /m/... URL. Audio recording (MediaRecorder) was intentionally not tested via UI per E1 instructions; backend agent already validated Whisper+GPT via curl. Real question keys (q1_neq, q2_site, q3_employes, q4_ca_pct, q5_etablissements) and category keys (facade, enseigne, affichage_interieur, poste_travail, offre_emploi, documents, autre) differ slightly from the placeholder keys in the review request but count and behavior are correct."
+}
