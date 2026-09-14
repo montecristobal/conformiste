@@ -144,3 +144,12 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - **Phase 2 — Tableaux de bord et indices (P0)** : écran d'ouverture du dossier montrant 3 indices (Francisabilité, Conformité, Risque) + diagnostic EP à 3 états, calculés à partir des données de l'Amorce ; formulaire Module 1 complet derrière un bouton « Compléter le dossier ». À tester isolément (partie la plus délicate).
 - Réutiliser le patron accepter/refuser (WebEnrichPanel) pour valider les réponses vocales transcrites lors de leur report dans le formulaire.
 - Paiements Stripe (PRO/SOLO) — P0.
+
+## Implémenté (2026-06 — itération 13, validation des thèmes A1–A4)
+- Textes de loi confirmés (LégisQuébec, Loi 96) insérés tels quels et `texte_loi_valide=true` pour **A1 (art. 41), A2 (art. 41(1°) et 42), A3 (art. 50.1), A4 (art. 46 et 46.1)** — s'ajoutent à A5 (art. 58) déjà validé. Le moteur peut désormais qualifier « non conforme » pour A1 à A5 ; B1–B9 (art. 141) restent au statut prudent « à valider ».
+- A1 : `note_portee` distincte du `texte_loi` (le par. 4° est limitatif ; ni l'oral ni les « outils de travail » ne sont couverts par l'article — ces éléments relèvent du `libelle_oqlf`, jamais fusionnés dans `texte_loi`).
+- Champs de référence externe renseignés (external_citation, reference_date 2025-06-01, retrieved_at). Vérifié : `GET /api/v1/catalogue/themes` retourne A1–A5 validés + note_portee A1.
+
+## Ordre convenu pour la suite (demande utilisateur)
+1. Report vocal (réponses Amorce transcrites) → préremplissage Module 1 via patron accepter/refuser.
+2. Phase 2 — indices (Francisabilité, Conformité, Risque) + diagnostic EP 3 états.

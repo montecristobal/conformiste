@@ -166,6 +166,87 @@ for _t in THEMES_LEGAUX:
         _t["retrieved_at"] = "2026-06-01"
 
 
+# Thèmes validés manuellement — textes de loi confirmés (LégisQuébec, Loi 96).
+# Niveau 2 activé : le moteur peut qualifier « non conforme » pour A1 à A4.
+_A_TEXTES = {
+    "A1": {
+        "texte_loi": (
+            "L'employeur doit respecter le droit du travailleur d'exercer ses activités en "
+            "français; il est en conséquence notamment tenu : 1° de voir à ce que toute offre "
+            "d'emploi, de mutation ou de promotion qu'il diffuse le soit en français; 2° de voir "
+            "à ce que tout contrat individuel de travail qu'il conclut par écrit soit rédigé en "
+            "français; 3° d'utiliser le français dans les communications écrites, même celles "
+            "suivant la fin du lien d'emploi, qu'il adresse à son personnel, à une partie de "
+            "celui-ci, à un travailleur en particulier ou à une association de travailleurs "
+            "représentant son personnel ou une partie de celui-ci; 4° de voir à ce que les "
+            "documents visés ci-dessous qu'il rend disponibles soient rédigés en français : "
+            "a) les formulaires de demande d'emploi; b) les documents ayant trait aux conditions "
+            "de travail; c) les documents de formation produits à l'intention de son personnel."
+        ),
+        "note_portee": (
+            "Le paragraphe 4° énumère limitativement trois catégories de documents. L'article ne "
+            "couvre ni les communications orales ni une catégorie générale d'« outils de travail » "
+            "— ces éléments figurent dans le libellé du formulaire OQLF (libelle_oqlf), pas dans "
+            "l'article lui-même. Ne jamais fusionner les deux dans le champ texte_loi."
+        ),
+        "external_citation": "Charte de la langue française, RLRQ c. C-11, art. 41",
+    },
+    "A2": {
+        "texte_loi": (
+            "Art. 42 — Lorsqu'une offre visant à pourvoir un poste [...] est diffusée par un "
+            "employeur dans une langue autre que le français en plus de l'offre qu'il est tenu de "
+            "diffuser en français en vertu du paragraphe 1° du premier alinéa de l'article 41, il "
+            "doit s'assurer que ces offres sont diffusées simultanément et par des moyens de "
+            "transmission de même nature et atteignant un public cible de taille comparable."
+        ),
+        "external_citation": "Charte de la langue française, RLRQ c. C-11, art. 41(1°) et 42",
+    },
+    "A3": {
+        "texte_loi": (
+            "Lorsque les personnes adhérant à un groupe couvert par un contrat d'assurance "
+            "collective sont toutes des travailleurs [...], l'assureur est tenu de remettre au "
+            "preneur une copie de la police rédigée en français; il en est de même des "
+            "attestations d'assurance devant être distribuées à ces travailleurs."
+        ),
+        "external_citation": "Charte de la langue française, RLRQ c. C-11, art. 50.1",
+    },
+    "A4": {
+        "texte_loi": (
+            "Art. 46 — Il est interdit à un employeur d'exiger d'une personne, pour qu'elle puisse "
+            "rester en poste ou y accéder [...], la connaissance ou un niveau de connaissance "
+            "spécifique d'une langue autre que la langue officielle, à moins que l'accomplissement "
+            "de la tâche ne nécessite une telle connaissance; même alors, il doit, au préalable, "
+            "avoir pris tous les moyens raisonnables pour éviter d'imposer une telle exigence. "
+            "L'employeur qui exige cette connaissance pour accéder à un poste doit, lorsqu'il "
+            "diffuse une offre visant à pourvoir ce poste, y indiquer les motifs justifiant cette "
+            "exigence.\n"
+            "Art. 46.1 — Un employeur est réputé ne pas avoir pris tous les moyens raisonnables "
+            "[...] dès lors que, avant d'exiger cette connaissance [...], l'une des conditions "
+            "suivantes n'est pas remplie : 1° il avait évalué les besoins linguistiques réels "
+            "associés aux tâches à accomplir; 2° il s'était assuré que les connaissances "
+            "linguistiques déjà exigées des autres membres du personnel étaient insuffisantes pour "
+            "l'accomplissement de ces tâches; 3° il avait restreint le plus possible le nombre de "
+            "postes auxquels se rattachent des tâches dont l'accomplissement nécessite cette "
+            "connaissance. Le premier alinéa ne doit pas être interprété de façon à imposer à un "
+            "employeur une réorganisation déraisonnable de son entreprise."
+        ),
+        "external_citation": "Charte de la langue française, RLRQ c. C-11, art. 46 et 46.1",
+    },
+}
+for _t in THEMES_LEGAUX:
+    _spec = _A_TEXTES.get(_t["id"])
+    if _spec:
+        _t["texte_loi_valide"] = True
+        _t["texte_loi"] = _spec["texte_loi"]
+        if _spec.get("note_portee"):
+            _t["note_portee"] = _spec["note_portee"]
+        _t["external_source_type"] = "charte_langue_francaise"
+        _t["external_citation"] = _spec["external_citation"]
+        _t["reference_date"] = "2025-06-01"
+        _t["retrieved_at"] = "2026-06-01"
+
+
+
 # Étapes du cycle de vie d'un dossier (pipeline légal)
 PIPELINE_STAGES = [
     {"key": "inscription", "ordre": 1, "label": "Inscription de l'entreprise",
