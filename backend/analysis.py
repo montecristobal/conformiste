@@ -18,7 +18,7 @@ import requests
 import pdfplumber
 from bs4 import BeautifulSoup
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+from openai import AsyncOpenAI
 
 logger = logging.getLogger("conformiste.analysis")
 
@@ -44,8 +44,9 @@ def _validate_public_url(url: str):
                 or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
             raise UrlValidationError("Adresse non autorisée (réseau interne).")
 
-EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
-LLM_MODEL = ("openai", "gpt-5.4")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.4")
+_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 MAX_TEXT = 12000
 
 
@@ -124,35 +125,32 @@ def _parse_json(raw: str) -> dict:
 
 async def run_llm_analysis(kind: str, payload, themes, filename: str = "") -> dict:
     """kind: 'image' (payload=base64 str + mime), 'text' (payload=str). Returns parsed dict."""
-    chat = LlmChat(
-        api_key=EMERGENT_KEY,
-        session_id=f"analyse-{filename or 'doc'}",
-        system_message=_system_prompt(themes),
-    ).with_model(*LLM_MODEL)
-
     if kind == "image":
         b64, mime = payload
-        msg = UserMessage(
-            text=("Analyse cette image (photo d'affichage, de document ou de publicité). "
-                  "Fais l'OCR du texte visible, détecte la ou les langues, et retourne le JSON demandé. "
-                  "Considère notamment les thèmes d'affichage/publicité et de communications."),
-            file_contents=[ImageContent(image_base64=b64)],
-        )
+        user_content = [
+            {"type": "text",
+             "text": ("Analyse cette image (photo d'affichage, de document ou de publicité). "
+                      "Fais l'OCR du texte visible, détecte la ou les langues, et retourne le JSON demandé. "
+                      "Considère notamment les thèmes d'affichage/publicité et de communications.")},
+            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+        ]
     else:
         text = (payload or "")[:MAX_TEXT]
         if not text:
             return {"langue_detectee": "autre", "resume": "Aucun contenu textuel extrait.", "elements": []}
-        msg = UserMessage(
-            text=("Analyse le contenu textuel suivant et retourne le JSON demandé "
-                  "(langue détectée, constats factuels, thèmes potentiellement concernés).\n\n"
-                  f"--- CONTENU ---\n{text}"),
-        )
+        user_content = ("Analyse le contenu textuel suivant et retourne le JSON demandé "
+                        "(langue détectée, constats factuels, thèmes potentiellement concernés).\n\n"
+                        f"--- CONTENU ---\n{text}")
 
-    resp = await chat.send_message(msg)
+    resp = await _client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[{"role": "system", "content": _system_prompt(themes)},
+                  {"role": "user", "content": user_content}])
+    raw = resp.choices[0].message.content or ""
     try:
-        data = _parse_json(resp)
+        data = _parse_json(raw)
     except Exception as e:
-        logger.warning(f"JSON parse failed: {e}; raw={resp[:200]}")
+        logger.warning(f"JSON parse failed: {e}; raw={raw[:200]}")
         data = {"langue_detectee": "autre",
                 "resume": "Analyse effectuée mais réponse non structurée.",
                 "elements": []}

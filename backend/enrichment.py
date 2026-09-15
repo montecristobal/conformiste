@@ -11,7 +11,7 @@ import logging
 import base64
 from urllib.parse import urlparse, parse_qs
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from openai import AsyncOpenAI
 from analysis import fetch_url_text, _parse_json, UrlValidationError
 
 import requests
@@ -90,8 +90,9 @@ def detect_language(text):
 
 logger = logging.getLogger("conformiste.enrichment")
 
-EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
-LLM_MODEL = ("openai", "gpt-5.4")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.4")
+_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 MAX_TEXT = 11000
 
 # Champs ciblés : (clé module1 "sid.fid", libellé, type)
@@ -211,14 +212,12 @@ async def enrich_module1(nom, neq, site_url):
         "Propose uniquement les champs appuyés par ce contenu, ces résultats de recherche, "
         "ou un fait public fiable."
     )
-    chat = LlmChat(
-        api_key=EMERGENT_KEY,
-        session_id=f"enrich-{neq or nom or 'ent'}",
-        system_message=_SYSTEM,
-    ).with_model(*LLM_MODEL)
     try:
-        resp = await chat.send_message(UserMessage(text=user_text))
-        data = _parse_json(resp)
+        resp = await _client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[{"role": "system", "content": _SYSTEM},
+                      {"role": "user", "content": user_text}])
+        data = _parse_json(resp.choices[0].message.content or "")
     except Exception as e:
         logger.warning(f"enrich LLM/parse failed: {e}")
         data = {"proposals": []}

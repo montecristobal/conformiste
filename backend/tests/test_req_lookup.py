@@ -118,10 +118,9 @@ class TestReqLookupShape:
         ref = client.get(f"{API}/req/lookup", params={"neq": NEQ}, timeout=30).json()
         assert d == ref
 
-    def test_non_numeric_neq_still_returns_200(self, client):
+    def test_non_numeric_neq_returns_422(self, client):
         r = client.get(f"{API}/req/lookup", params={"neq": "ABC"}, timeout=30)
-        assert r.status_code == 200
-        assert r.json()["neq"] == "ABC"
+        assert r.status_code == 422, r.text[:200]
 
 
 class TestDossierIntegration:

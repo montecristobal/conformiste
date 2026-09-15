@@ -150,11 +150,19 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - A1 : `note_portee` distincte du `texte_loi` (le par. 4° est limitatif ; ni l'oral ni les « outils de travail » ne sont couverts par l'article — ces éléments relèvent du `libelle_oqlf`, jamais fusionnés dans `texte_loi`).
 - Champs de référence externe renseignés (external_citation, reference_date 2025-06-01, retrieved_at). Vérifié : `GET /api/v1/catalogue/themes` retourne A1–A5 validés + note_portee A1.
 
-## Ordre convenu pour la suite (demande utilisateur)
-1. ✅ Report vocal (réponses Amorce transcrites) → préremplissage Module 1 via patron accepter/refuser — **FAIT** (itération 14).
-2. Phase 2 — indices (Francisabilité, Conformité, Risque) + diagnostic EP 3 états.
-
 ## Implémenté (2026-06 — itération 14, report vocal → Module 1)
 - Bouton « Reporter l'entrevue vocale » (Module 1, `module1-amorce-report`) : `GET /api/v1/dossiers/{id}/amorce/proposals` récupère la dernière session d'amorce ayant des réponses et mappe chaque question vers la clé exacte du schéma Module 1 (q1→s1.neq, q2→s1.sites_web, q3→s4.employes_quebec, q4→s3.pct_ca, q5→s4.etablissements) avec **extraction structurée** (NEQ 9-10 chiffres, entier, pourcentage QC = 1er nombre, URL/domaine).
 - Réutilise le **patron accepter/refuser** (`WebEnrichPanel`, nouvelles props title/subtitle) : source « entrevue vocale (amorce) » + note affichant la langue détectée et la transcription française. Seuls les champs acceptés remplissent le Module 1.
 - Vérifié : backend curl (proposals corrects : employés 40, %CA QC 70 depuis audio EN traduit) + testing agent frontend **100 %** (ouverture panneau, titre correct, refuser+appliquer, régression titre recherche Web OK).
+
+## Implémenté (2026-06 — itération 15, indépendance des intégrations Emergent / pré-migration Railway)
+- **Suppression de `emergentintegrations`** (retiré de requirements.txt) → le build ne dépend plus de l'index privé Emergent.
+- **LLM en direct (SDK `openai`)** : `amorce.py`, `analysis.py`, `enrichment.py` utilisent `AsyncOpenAI` (`chat.completions.create` + `audio.transcriptions.create`, modèle `gpt-5.4` via `OPENAI_MODEL`, `whisper-1`). Comportement identique (transcription langue parlée → traduction FR, principe de prudence conservé, audio original conservé). Dégradation gracieuse si erreur (audio conservé + avertissement).
+- **Courriels via API Resend en direct** (`mailer.py` → `https://api.resend.com/emails`, `RESEND_API_KEY`) au lieu du proxy Emergent. Gabarit/garde-fous anti-hameçonnage inchangés. **Vérifié** : envoi réel réussi (id retourné) vers l'adresse titulaire.
+- **Stockage à double backend** (`storage.py`) : S3/compatible (AWS S3 ou Cloudflare R2 via `boto3`) dès que `S3_BUCKET`+`S3_ACCESS_KEY`+`S3_SECRET_KEY` sont définis ; sinon **repli** proxy Emergent (actif en prévisualisation). Retry/backoff conservé. Aller-retour put/get vérifié.
+- Nouvelles variables : `OPENAI_API_KEY`, `OPENAI_MODEL`, `RESEND_API_KEY`, `EMAIL_FROM`, `S3_BUCKET`/`S3_REGION`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_ENDPOINT_URL`. Documentées dans `backend/.env.example`.
+- Tests pytest : `test_themes_have_external_fields` mis à jour (A1–A5 validés / B1–B9 prudents) ; `test_req_lookup` corrigé (NEQ non numérique → 422, contrat réel). **Bloqueurs externes** : la clé OpenAI fournie n'a **aucun crédit** (429 insufficient_quota) → les tests d'analyse LLM ne peuvent passer tant que des crédits ne sont pas ajoutés ; le compte Resend n'a pas de domaine vérifié (envoi limité à l'adresse titulaire). Le stockage S3 attend des identifiants pour être activé/testé.
+
+## Ordre convenu pour la suite (demande utilisateur)
+1. ✅ Report vocal (réponses Amorce transcrites) → préremplissage Module 1 via patron accepter/refuser — **FAIT** (itération 14).
+2. Phase 2 — indices (Francisabilité, Conformité, Risque) + diagnostic EP 3 états (art. 144, en attente des seuils/facteurs art. 142).

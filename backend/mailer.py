@@ -1,4 +1,4 @@
-"""Envoi de courriels transactionnels via l'intégration Resend gérée par Emergent.
+"""Envoi de courriels transactionnels via l'API Resend (appel direct).
 
 Voir RESEND_EMAIL_PLAYBOOK. `_assert_safe_email` est un garde-fou (G2/G3) copié
 tel quel : à appeler sur CHAQUE envoi. Les destinataires viennent d'enregistrements
@@ -15,9 +15,10 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger("conformiste.mailer")
 
-EMAIL_BASE_URL = "https://integrations.emergentagent.com"
-EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+RESEND_API_URL = "https://api.resend.com/emails"
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "CONFORMISTE")
+EMAIL_FROM = os.environ.get("EMAIL_FROM", "onboarding@resend.dev")
 EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
 
 _SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
@@ -94,15 +95,17 @@ def _assert_safe_email(subject: str, html: str) -> None:
 
 async def send_email(*, to: str, subject: str, html: str) -> str | None:
     _assert_safe_email(subject, html)
-    if not EMAIL_KEY:
-        logger.warning("EMERGENT_EMAIL_KEY manquant — courriel non envoyé.")
+    if not RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY manquant — courriel non envoyé.")
         return None
-    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
+    payload = {"from": f"{EMAIL_FROM_NAME} <{EMAIL_FROM}>", "to": [to],
+               "subject": subject, "html": html}
     if EMAIL_REPLY_TO:
-        payload["contact_email"] = EMAIL_REPLY_TO
+        payload["reply_to"] = EMAIL_REPLY_TO
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(f"{EMAIL_BASE_URL}/api/v1/email/send",
-                                 headers={"X-Email-Key": EMAIL_KEY}, json=payload)
+        resp = await client.post(RESEND_API_URL,
+                                 headers={"Authorization": f"Bearer {RESEND_API_KEY}",
+                                          "Content-Type": "application/json"}, json=payload)
     resp.raise_for_status()
     return resp.json().get("id")
 

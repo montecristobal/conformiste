@@ -77,11 +77,17 @@ class TestPassiveFields:
         assert r.status_code == 200
         themes = r.json()
         assert isinstance(themes, list) and len(themes) > 0
+        validated = {"A1", "A2", "A3", "A4", "A5"}  # textes de loi confirmés (niveau 2 activé)
         for t in themes:
-            assert t.get("texte_loi_valide") is False, f"{t.get('id')} texte_loi_valide={t.get('texte_loi_valide')}"
             for f in EXTERNAL_FIELDS:
                 assert f in t, f"theme {t.get('id')} missing {f}"
-                assert t[f] is None, f"theme {t.get('id')} {f} should be null, got {t[f]}"
+            if t.get("id") in validated:
+                assert t.get("texte_loi_valide") is True, f"{t.get('id')} devrait être validé"
+                assert t.get("texte_loi"), f"{t.get('id')} texte_loi manquant"
+            else:
+                assert t.get("texte_loi_valide") is False, f"{t.get('id')} texte_loi_valide={t.get('texte_loi_valide')}"
+                for f in EXTERNAL_FIELDS:
+                    assert t[f] is None, f"theme {t.get('id')} {f} should be null, got {t[f]}"
 
 
 # ---------------- cron reminders ----------------

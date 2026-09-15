@@ -10,13 +10,13 @@ import io
 import re
 import logging
 
-from emergentintegrations.llm.openai import OpenAISpeechToText
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from openai import AsyncOpenAI
 
 logger = logging.getLogger("conformiste.amorce")
 
-EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
-LLM_MODEL = ("openai", "gpt-5.4")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.4")
+_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # Les 5 questions de l'amorce (texte exact fourni par le client).
 AMORCE_QUESTIONS = [
@@ -66,10 +66,10 @@ def ext_from_content_type(ct: str, default: str = "bin") -> str:
 
 async def transcribe_audio(data: bytes, filename: str):
     """Transcrit l'audio dans la langue parlée (Whisper). Retourne (texte, langue)."""
-    stt = OpenAISpeechToText(api_key=EMERGENT_KEY)
     bio = io.BytesIO(data)
     bio.name = filename or "audio.webm"
-    resp = await stt.transcribe(file=bio, model="whisper-1", response_format="verbose_json")
+    resp = await _client.audio.transcriptions.create(
+        model="whisper-1", file=bio, response_format="verbose_json")
     text = (getattr(resp, "text", "") or "").strip()
     lang = getattr(resp, "language", None)
     return text, lang
@@ -89,12 +89,12 @@ async def translate_to_french(text: str, question: str) -> str:
     """Traduit/normalise la transcription en français pour préremplir le champ."""
     if not text:
         return ""
-    chat = LlmChat(api_key=EMERGENT_KEY, session_id="amorce-tr",
-                   system_message=_TR_SYSTEM).with_model(*LLM_MODEL)
     try:
-        resp = await chat.send_message(
-            UserMessage(text=f"Question : {question}\nRéponse transcrite : {text}"))
-        return (resp or "").strip()
+        resp = await _client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[{"role": "system", "content": _TR_SYSTEM},
+                      {"role": "user", "content": f"Question : {question}\nRéponse transcrite : {text}"}])
+        return (resp.choices[0].message.content or "").strip()
     except Exception as e:
         logger.warning(f"amorce translate failed: {e}")
         return text
