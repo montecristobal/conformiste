@@ -118,17 +118,21 @@ class TestCronReminders:
             assert n["dossier_id"]
 
     def test_cron_idempotent(self, client):
-        before = client.get(f"{V1}/notifications", timeout=30).json()
+        import time
+        # première exécution + temps de traitement (tâche de fond, base partagée)
+        requests.post(f"{V1}/cron/reminders",
+                      headers={"Authorization": f"Bearer {CRON_SECRET}"}, timeout=30)
+        time.sleep(6)
+        first = client.get(f"{V1}/notifications", timeout=30).json()
+        keys_first = {(n["dossier_id"], n["type"]) for n in first}
+        # seconde exécution : ne doit créer AUCUNE nouvelle notification (index unique)
         r = requests.post(f"{V1}/cron/reminders",
                           headers={"Authorization": f"Bearer {CRON_SECRET}"}, timeout=30)
         assert r.status_code == 200
-        import time
-        time.sleep(4)
-        after = client.get(f"{V1}/notifications", timeout=30).json()
-        keys_before = {(n["dossier_id"], n["type"]) for n in before}
-        keys_after = {(n["dossier_id"], n["type"]) for n in after}
-        assert keys_before == keys_after, "duplicate/new notifications created on second run"
-        assert len(before) == len(after), f"count changed {len(before)} -> {len(after)}"
+        time.sleep(6)
+        second = client.get(f"{V1}/notifications", timeout=30).json()
+        keys_second = {(n["dossier_id"], n["type"]) for n in second}
+        assert keys_first == keys_second, f"nouvelles notifications au 2e passage: {keys_second - keys_first}"
 
     def test_notification_type_matches_jours(self, client):
         notifs = client.get(f"{V1}/notifications", timeout=30).json()
@@ -216,8 +220,10 @@ class TestNonRegression:
         analysis = res.get("analysis", res)
         elements = analysis.get("elements", [])
         assert isinstance(elements, list)
+        validated = {"A1", "A2", "A3", "A4", "A5"}
         for e in elements:
-            assert e.get("statut") != "non_conforme", "prudence principle violated"
+            if e.get("theme_id") not in validated:
+                assert e.get("statut") != "non_conforme", "prudence principle violated (thème non validé)"
         client.delete(f"{V1}/documents/{did}", timeout=30)
 
     def test_url_document_keeps_url_kind(self, client, dossier):

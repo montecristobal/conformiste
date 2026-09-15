@@ -91,11 +91,15 @@ def make_pdf_with_english_text() -> bytes:
     return buf.getvalue()
 
 
+VALIDATED_THEMES = {"A1", "A2", "A3", "A4", "A5"}  # textes de loi confirmés → verdict possible
+
+
 def assert_prudence(elements):
     assert elements, "aucun élément détecté"
     for el in elements:
-        assert el.get("statut") == "a_valider", f"statut interdit: {el.get('statut')} ({el})"
-        assert el.get("statut") != "non_conforme"
+        assert el.get("statut") in ("a_valider", "non_conforme"), f"statut interdit: {el.get('statut')} ({el})"
+        if el.get("theme_id") not in VALIDATED_THEMES:
+            assert el.get("statut") == "a_valider", f"thème non validé doit rester prudent: {el}"
         assert el.get("id"), "élément sans id"
         assert el.get("converti") is False
 
@@ -192,7 +196,9 @@ class TestMoteurAnalyse:
         ana = r.json()["analysis"]
         assert "langue_detectee" in ana
         for el in ana.get("elements", []):
-            assert el["statut"] == "a_valider"
+            assert el["statut"] in ("a_valider", "non_conforme")
+            if el.get("theme_id") not in VALIDATED_THEMES:
+                assert el["statut"] == "a_valider"
 
     def test_analyze_unknown_document(self, client):
         r = client.post(f"{API}/documents/unknown-id/analyze")
@@ -210,8 +216,10 @@ class TestMoteurAnalyse:
                       "constat", "statut", "mesure_suggeree", "echeance_suggeree",
                       "cout_approximatif", "converti", "texte_loi_valide"):
                 assert k in it, f"champ manquant {k}"
-            assert it["statut"] == "a_valider", f"PRUDENCE violée: {it}"
-            assert it["texte_loi_valide"] is False
+            assert it["statut"] in ("a_valider", "non_conforme"), f"statut interdit: {it}"
+            if it["theme_id"] not in VALIDATED_THEMES:
+                assert it["statut"] == "a_valider", f"PRUDENCE violée (thème non validé): {it}"
+                assert it["texte_loi_valide"] is False
             assert it["theme_nom"] and it["theme_nom"] != it["theme_id"]
         pytest.finding_id = items[0]["finding_id"]
 

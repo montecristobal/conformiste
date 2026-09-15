@@ -293,15 +293,19 @@ class TestDeleteAndPlan:
         ana = a.json()["analysis"]
         assert ana["langue_detectee"] in ("francais", "autre", "mixte")
         assert isinstance(ana["elements"], list)
+        validated = {"A1", "A2", "A3", "A4", "A5"}
         for el in ana["elements"]:
-            assert el["statut"] == "a_valider", f"PRUDENCE violée: {el}"
+            assert el["statut"] in ("a_valider", "non_conforme"), f"statut interdit: {el}"
+            if el.get("theme_id") not in validated:
+                assert el["statut"] == "a_valider", f"PRUDENCE violée (thème non validé): {el}"
             assert "echeance_suggeree_date" in el
 
         p1 = client.get(f"{API}/dossiers/{dossier['id']}/plan-correction")
         assert p1.status_code == 200
         items1 = p1.json()
-        assert all(i["statut"] == "a_valider" for i in items1)
-        assert all(i["texte_loi_valide"] is False for i in items1)
+        assert all(i["statut"] in ("a_valider", "non_conforme") for i in items1)
+        assert all(i["statut"] == "a_valider" for i in items1 if i["theme_id"] not in validated)
+        assert all(i["texte_loi_valide"] is False for i in items1 if i["theme_id"] not in validated)
 
         time.sleep(1)
         items2 = client.get(f"{API}/dossiers/{dossier['id']}/plan-correction").json()
