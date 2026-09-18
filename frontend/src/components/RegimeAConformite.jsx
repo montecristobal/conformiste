@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import api from "@/lib/api";
+import api, { downloadPdf } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Info, ChevronDown, ChevronRight, ScanSearch, Check, AlertTriangle, ShieldQuestion,
-  Minus, Loader2,
+  Minus, Loader2, FileDown,
 } from "lucide-react";
 
 const STAT = {
@@ -111,9 +111,14 @@ export const RegimeAConformite = ({ dossier, onGoAnalyse }) => {
             {evalues} thème(s) évalué(s) sur {ordered.length}. Téléversez des documents ou lancez l'amorce mobile pour alimenter l'analyse.
           </p>
         </div>
-        <Button onClick={onGoAnalyse} className="bg-[#2563EB] hover:bg-[#2563EB]/90" data-testid="regimea-go-analyse">
-          <ScanSearch size={16} className="mr-2" /> Analyser des documents
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => downloadPdf(`/dossiers/${dossier.id}/export/regime-a`, `conformite_${dossier.neq || dossier.id}.pdf`)} data-testid="regimea-export-pdf">
+            <FileDown size={16} className="mr-2" /> Rapport PDF
+          </Button>
+          <Button onClick={onGoAnalyse} className="bg-[#2563EB] hover:bg-[#2563EB]/90" data-testid="regimea-go-analyse">
+            <ScanSearch size={16} className="mr-2" /> Analyser des documents
+          </Button>
+        </div>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

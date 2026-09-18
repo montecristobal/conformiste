@@ -288,6 +288,66 @@ def build_oqlf_pdf(dossier):
     return buf
 
 
+def build_regime_a_pdf(dossier, themes, findings_by_theme):
+    """Rapport de conformité aux obligations universelles (Régime A, < 25 employés)."""
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, topMargin=1.6 * cm,
+                            bottomMargin=1.6 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
+    ss = _styles()
+    story = []
+    _header(story, ss, "Rapport de conformité — Obligations universelles",
+            f"Entreprise : <b>{_esc(dossier.get('nom_entreprise', '—'))}</b> — "
+            f"NEQ : {_esc(dossier.get('neq', '—'))}")
+
+    story.append(Paragraph(
+        "Entreprise de moins de 25 employés — assujettie aux obligations générales des chapitres VI "
+        "(langue du travail) et VII (langue du commerce et des affaires) de la Charte de la langue "
+        "française. Aucun parcours de francisation, analyse linguistique ou certificat ne s'applique "
+        "à ce régime.", ss["Body"]))
+    story.append(Spacer(1, 4))
+
+    ordered = sorted(themes, key=lambda x: (not x.get("prioritaire_amorce", True), x.get("ordre", 0)))
+    evalues = sum(1 for t in ordered if findings_by_theme.get(t["id"]))
+    story.append(Paragraph(
+        f"{evalues} thème(s) évalué(s) sur {len(ordered)}. Estimation indicative — à valider par un "
+        "professionnel.", ss["Label"]))
+    story.append(Spacer(1, 6))
+
+    for t in ordered:
+        fs = findings_by_theme.get(t["id"], [])
+        if not fs:
+            statut = "Non évalué"
+        elif any(f.get("statut") == "non_conforme" for f in fs):
+            statut = "Non conforme"
+        else:
+            statut = "À valider"
+        story.append(Paragraph(
+            f'{t["id"]} — {_esc(t.get("nom_theme", ""))} ({_esc(t.get("article", ""))}) — '
+            f'<b>{statut}</b>', ss["H2"]))
+        tl = t.get("texte_loi") or "[Texte légal non disponible]"
+        story.append(Paragraph(f"Texte de loi : {_esc(tl)}", ss["Legal"]))
+        if fs:
+            for i, f in enumerate(fs, 1):
+                story.append(_kv_table([
+                    (f"Constat {i}", f.get("constat")),
+                    ("Source", f.get("source")),
+                    ("Mesure suggérée", f.get("mesure_suggeree")),
+                    ("Statut", {"non_conforme": "Non conforme", "a_valider": "À valider"}.get(f.get("statut"), f.get("statut"))),
+                ]))
+                story.append(Spacer(1, 3))
+        else:
+            story.append(Paragraph("<i>Aucun constat — thème non encore évalué par l'analyse.</i>", ss["Label"]))
+        story.append(Spacer(1, 4))
+
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(
+        "Document produit par CONFORMISTE à titre indicatif à partir des documents et médias analysés. "
+        "Ne constitue pas un avis juridique.", ss["Label"]))
+    doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+    buf.seek(0)
+    return buf
+
+
 def build_module2_pdf(dossier, themes, comite_requis):
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=letter, topMargin=1.6 * cm,

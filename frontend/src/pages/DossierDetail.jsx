@@ -154,9 +154,18 @@ export default function DossierDetail() {
           <div className="text-sm px-4 py-2 rounded-xl border bg-indigo-50 text-indigo-800 border-indigo-200" data-testid="regime-a-badge">
             Obligations universelles · moins de 25 employés
           </div>
-        ) : dossier.echeance_module1 && (
-          <div className={`text-sm px-4 py-2 rounded-xl border ${dossier.urgence_module1 === "critical" ? "bg-red-100 text-red-800 border-red-300" : dossier.urgence_module1 === "approaching" ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-slate-100 text-slate-700 border-slate-200"}`}>
-            Analyse linguistique due le <b>{dossier.echeance_module1}</b> ({dossier.jours_restants_module1} jours)
+        ) : (
+          <div className="flex flex-col items-end gap-2">
+            <div className={`text-sm px-4 py-2 rounded-xl border ${dossier.comite_requis ? "bg-indigo-50 text-indigo-800 border-indigo-200" : "bg-slate-100 text-slate-600 border-slate-200"}`} data-testid="regime-b-comite-badge">
+              {dossier.comite_requis
+                ? "Comité de francisation requis · 100 employés et plus"
+                : "Sans comité de francisation · 25 à 99 employés"}
+            </div>
+            {dossier.echeance_module1 && (
+              <div className={`text-sm px-4 py-2 rounded-xl border ${dossier.urgence_module1 === "critical" ? "bg-red-100 text-red-800 border-red-300" : dossier.urgence_module1 === "approaching" ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-slate-100 text-slate-700 border-slate-200"}`}>
+                Analyse linguistique due le <b>{dossier.echeance_module1}</b> ({dossier.jours_restants_module1} jours)
+              </div>
+            )}
           </div>
         )}
       </div>

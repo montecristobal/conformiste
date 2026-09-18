@@ -131,3 +131,47 @@ async def send_reminder_email(to: str, dossier_nom: str, message: str, dossier_i
         f'</td></tr></table>'
     )
     return await send_email(to=to, subject=subject, html=html)
+
+
+
+async def send_weekly_summary_email(to: str, name: str, items: list, portfolio_count: int) -> str | None:
+    """Résumé hebdomadaire des échéances à venir pour un consultant PRO."""
+    app_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    link = f"{app_url}/dashboard" if app_url.startswith("https://") else None
+    subject = f"Résumé hebdomadaire — {len(items)} échéance(s) à surveiller"
+    rows = ""
+    for it in items:
+        j = it.get("jours")
+        etat = "En retard" if (isinstance(j, int) and j < 0) else (f"Dans {j} jour(s)" if isinstance(j, int) else "—")
+        color = "#B91C1C" if (isinstance(j, int) and j <= 7) else ("#B45309" if (isinstance(j, int) and j <= 30) else "#334155")
+        rows += (
+            f'<tr>'
+            f'<td style="padding:8px 6px;border-bottom:1px solid #E2E8F0;font-size:13px">{escape(str(it.get("nom") or "—"))}</td>'
+            f'<td style="padding:8px 6px;border-bottom:1px solid #E2E8F0;font-size:13px;white-space:nowrap">{escape(str(it.get("echeance") or "—"))}</td>'
+            f'<td style="padding:8px 6px;border-bottom:1px solid #E2E8F0;font-size:13px;font-weight:bold;color:{color};white-space:nowrap">{escape(etat)}</td>'
+            f'</tr>'
+        )
+    btn = (f'<p style="margin:20px 0"><a href="{escape(link)}" '
+           f'style="background:#0F2B48;color:#fff;padding:10px 18px;border-radius:8px;'
+           f'text-decoration:none;font-family:Arial,sans-serif;font-size:14px">'
+           f'Ouvrir mon tableau de bord</a></p>') if link else ""
+    html = (
+        f'<table role="presentation" width="100%"><tr><td style="padding:24px;'
+        f'font-family:Arial,sans-serif;color:#0F172A">'
+        f'<h2 style="color:#0F2B48;font-size:18px;margin:0 0 6px">Résumé hebdomadaire de votre portefeuille</h2>'
+        f'<p style="font-size:14px;line-height:1.5;margin:0 0 4px">Bonjour {escape(name or "")},</p>'
+        f'<p style="font-size:14px;line-height:1.5">Voici les échéances d\'analyse linguistique à surveiller '
+        f'dans les 30 prochains jours (ou déjà en retard) parmi vos <strong>{portfolio_count}</strong> dossier(s) :</p>'
+        f'<table role="presentation" width="100%" style="border-collapse:collapse;margin-top:8px">'
+        f'<tr><th align="left" style="padding:6px;border-bottom:2px solid #0F2B48;font-size:12px;color:#475569">Entreprise</th>'
+        f'<th align="left" style="padding:6px;border-bottom:2px solid #0F2B48;font-size:12px;color:#475569">Échéance</th>'
+        f'<th align="left" style="padding:6px;border-bottom:2px solid #0F2B48;font-size:12px;color:#475569">Statut</th></tr>'
+        f'{rows}'
+        f'</table>'
+        f'{btn}'
+        f'<p style="font-size:12px;color:#888;margin-top:24px">Envoyé par {escape(EMAIL_FROM_NAME)}, '
+        f'votre outil de conformité à la Charte de la langue française. '
+        f'Nous ne demandons jamais votre mot de passe par courriel.</p>'
+        f'</td></tr></table>'
+    )
+    return await send_email(to=to, subject=subject, html=html)

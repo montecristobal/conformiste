@@ -6,3 +6,10 @@ crons:
     method: POST
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     enabled: true
+  - name: resume-hebdo
+    description: "Envoie chaque lundi aux consultants PRO un résumé des échéances à venir de leur portefeuille"
+    cron: "0 12 * * 1"
+    endpoint: "{{BASE_URL}}/api/v1/cron/weekly-summary"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

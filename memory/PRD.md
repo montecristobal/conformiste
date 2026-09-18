@@ -198,6 +198,12 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - **Amorce mobile adaptée Régime A** (`amorce.questions_for_regime`/`photo_categories_for_regime`) : 3 questions vocales (NEQ, site, employés) sans % CA hors QC ni établissements ; photos façade/enseigne/affichage intérieur/produits-emballages/menus/factures/autre. Auto-analyse en tâche de fond élargie (`AMORCE_ANALYZE_CATS`).
 - Régime B (25+) inchangé (non-régression validée). Vérifié : pytest 98/98 + `test_segmentation_regime.py` 9/9 + testing agent frontend 100 % (SizeGate, Welcome A/B, Register A/B, DossierDetail A/B, badge Dashboard PRO, amorce mobile A). Aucun bug.
 
+## Implémenté (2026-06 — itération 20, Rapport PDF Régime A · Comité visible · Résumé hebdomadaire)
+- **Rapport PDF Régime A** (`pdf_export.build_regime_a_pdf`, `GET /dossiers/{id}/export/regime-a`) : liste les 18 obligations universelles U1–U18 avec statut (Non évalué / À valider / Non conforme), texte de loi et constats issus de l'analyse. Bouton `regimea-export-pdf` dans `RegimeAConformite.jsx`.
+- **Distinction comité 25-99 vs 100+** : badge visible dans l'en-tête du dossier Régime B (`regime-b-comite-badge` : « Comité de francisation requis · 100 employés et plus » vs « Sans comité · 25 à 99 employés ») et sur chaque ligne du tableau de bord PRO (`dossier-{id}-comite`).
+- **Résumé hebdomadaire PRO** (`generate_weekly_summary`, `POST /cron/weekly-summary`, cron `resume-hebdo` lundi 12:00 UTC dans `.emergent/crons.yml`) : un courriel par consultant PRO listant les échéances d'analyse dans les 30 jours ou en retard de tout son portefeuille (`mailer.send_weekly_summary_email`, scan anti-phishing OK). Endpoint sécurisé par `WEBHOOK_CRON_SECRET`, travail en tâche de fond.
+- Vérifié : endpoints curl (PDF 200 %PDF-, cron 200 accepted, 401 sur mauvais secret), captures Régime A (bouton PDF) et Régime B (badge comité).
+
 ## Prochaines tâches (backlog)
 - **Stripe Payments (P0)** : abonnements PRO/SOLO (clé env disponible dans le pod).
 - **Module 2 (P1)** : autres formulaires/modules.

@@ -677,6 +677,27 @@ async def export_module1(dossier_id: str, user: dict = Depends(get_current_user)
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
 
+@api.get("/dossiers/{dossier_id}/export/regime-a")
+async def export_regime_a(dossier_id: str, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    await audit(dossier_id, user, "Export PDF — Rapport de conformité (obligations universelles)")
+    docs = await db.documents.find({"dossier_id": dossier_id, "is_deleted": False},
+                                   {"_id": 0}).to_list(1000)
+    by_theme: Dict[str, list] = {}
+    for doc in docs:
+        source = doc.get("url") or doc.get("original_filename") or "Document"
+        for el in (doc.get("analysis") or {}).get("elements", []):
+            by_theme.setdefault(el.get("theme_id"), []).append({
+                "constat": el.get("constat", ""), "source": source,
+                "mesure_suggeree": el.get("mesure_suggeree", ""),
+                "statut": el.get("statut", "a_valider")})
+    from pdf_export import build_regime_a_pdf
+    buf = build_regime_a_pdf(d, UNIVERSAL_THEMES, by_theme)
+    fn = f"conformite_obligations_universelles_{d.get('neq') or dossier_id}.pdf"
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
 @api.get("/dossiers/{dossier_id}/export/module2")
 async def export_module2(dossier_id: str, user: dict = Depends(get_current_user)):
     d = await get_owned_dossier(dossier_id, user)
@@ -1282,6 +1303,47 @@ async def cron_reminders(request: Request, background_tasks: BackgroundTasks):
     if not secret or not hmac.compare_digest(token, secret):
         raise HTTPException(status_code=401, detail="Non autorisé")
     background_tasks.add_task(generate_reminders)
+    return {"status": "accepted"}
+
+
+async def generate_weekly_summary():
+    """Envoie à chaque consultant PRO un résumé des échéances à venir (30 j) ou en retard."""
+    users = await db.users.find({"account_type": "PRO"}).to_list(5000)
+    sent = 0
+    for u in users:
+        owner_id = str(u["_id"])
+        dossiers = await db.dossiers.find({"owner_id": owner_id}).to_list(5000)
+        items = []
+        for d in dossiers:
+            de = enrich_dossier(dict(d))
+            jours = de.get("jours_restants_module1")
+            if jours is None or jours > 30:
+                continue
+            items.append({"nom": d.get("nom_entreprise", ""),
+                          "echeance": de.get("echeance_module1"), "jours": jours})
+        if not items:
+            continue
+        items.sort(key=lambda x: x["jours"])
+        try:
+            if u.get("email"):
+                await mailer.send_weekly_summary_email(u["email"], u.get("name", ""),
+                                                       items, len(dossiers))
+                sent += 1
+        except Exception as ee:
+            logger.warning(f"Résumé hebdomadaire échoué (owner {owner_id}): {ee}")
+    logger.info(f"Résumés hebdomadaires envoyés : {sent}")
+    return sent
+
+
+@api.post("/cron/weekly-summary")
+async def cron_weekly_summary(request: Request, background_tasks: BackgroundTasks):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else ""
+    if not secret or not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="Non autorisé")
+    background_tasks.add_task(generate_weekly_summary)
     return {"status": "accepted"}
 
 

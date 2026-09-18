@@ -203,6 +203,9 @@ export default function Dashboard() {
                   ) : (
                     <>
                       {analyse && <StatusBadge statut={analyse.statut} testId={`dossier-${d.id}-analyse-status`} />}
+                      <div className={`text-xs font-medium px-3 py-1.5 rounded-lg border ${d.comite_requis ? "bg-indigo-50 text-indigo-800 border-indigo-200" : "bg-slate-100 text-slate-600 border-slate-200"}`} data-testid={`dossier-${d.id}-comite`}>
+                        {d.comite_requis ? "Comité requis · 100+" : "Sans comité · 25-99"}
+                      </div>
                       <div className={`text-xs font-medium px-3 py-1.5 rounded-lg border ${urgencyCls(d.urgence_module1)}`} data-testid={`dossier-${d.id}-echeance`}>
                         {d.echeance_module1
                           ? <>Analyse due le {d.echeance_module1} · <b>{d.jours_restants_module1 < 0 ? `en retard de ${Math.abs(d.jours_restants_module1)} j` : `${d.jours_restants_module1} j`}</b></>
