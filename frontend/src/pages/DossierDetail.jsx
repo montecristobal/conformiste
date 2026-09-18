@@ -19,6 +19,7 @@ import { AuditLog } from "@/components/AuditLog";
 import { OqlfInscriptionForm } from "@/components/OqlfInscriptionForm";
 import { AmorcePanel } from "@/components/AmorcePanel";
 import { DiagnosticPanel } from "@/components/DiagnosticPanel";
+import { RegimeAConformite } from "@/components/RegimeAConformite";
 import { toast } from "sonner";
 import { ArrowLeft, Send, MessageSquarePlus, Calendar, FileDown } from "lucide-react";
 
@@ -113,7 +114,7 @@ export default function DossierDetail() {
   const [dossier, setDossier] = useState(null);
   const [themes, setThemes] = useState([]);
   const [activeStage, setActiveStage] = useState("inscription");
-  const [tab, setTab] = useState("diagnostic");
+  const [tab, setTab] = useState("");
   const dirtyRef = useRef(false);
 
   const confirmLeave = () => {
@@ -132,6 +133,8 @@ export default function DossierDetail() {
 
   if (!dossier) return <Layout><div className="py-20 text-center text-slate-400">Chargement…</div></Layout>;
 
+  const isRegimeA = dossier.regime === "A";
+  const defaultTab = isRegimeA ? "conformite" : "diagnostic";
   const visibleStages = (dossier.stages || []).filter((s) => s.key !== "comite" || dossier.comite_requis);
 
   return (
@@ -147,49 +150,85 @@ export default function DossierDetail() {
           <h1 className="font-display text-3xl font-extrabold text-[#0F2B48]">{dossier.nom_entreprise}</h1>
           <p className="text-sm text-slate-500 font-mono">NEQ {dossier.neq || "—"} · {dossier.nb_employes_quebec} employés · {dossier.nb_etablissements} établissement(s)</p>
         </div>
-        {dossier.echeance_module1 && (
+        {isRegimeA ? (
+          <div className="text-sm px-4 py-2 rounded-xl border bg-indigo-50 text-indigo-800 border-indigo-200" data-testid="regime-a-badge">
+            Obligations universelles · moins de 25 employés
+          </div>
+        ) : dossier.echeance_module1 && (
           <div className={`text-sm px-4 py-2 rounded-xl border ${dossier.urgence_module1 === "critical" ? "bg-red-100 text-red-800 border-red-300" : dossier.urgence_module1 === "approaching" ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-slate-100 text-slate-700 border-slate-200"}`}>
             Analyse linguistique due le <b>{dossier.echeance_module1}</b> ({dossier.jours_restants_module1} jours)
           </div>
         )}
       </div>
 
-      <Card className="p-4 mb-6">
-        <PipelineStepper stages={visibleStages} activeKey={activeStage} onSelect={(k) => { if (confirmLeave()) { setActiveStage(k); setTab("apercu"); } }} />
-      </Card>
+      {!isRegimeA && (
+        <Card className="p-4 mb-6">
+          <PipelineStepper stages={visibleStages} activeKey={activeStage} onSelect={(k) => { if (confirmLeave()) { setActiveStage(k); setTab("apercu"); } }} />
+        </Card>
+      )}
 
-      <Tabs value={tab} onValueChange={(v) => { if (confirmLeave()) setTab(v); }}>
+      <Tabs value={tab || defaultTab} onValueChange={(v) => { if (confirmLeave()) setTab(v); }}>
         <TabsList className="mb-4">
-          <TabsTrigger value="diagnostic" data-testid="tab-diagnostic">Aperçu du diagnostic</TabsTrigger>
-          <TabsTrigger value="apercu" data-testid="tab-apercu">Étape & aperçu</TabsTrigger>
-          <TabsTrigger value="amorce" data-testid="tab-amorce">Amorce (mobile)</TabsTrigger>
-          <TabsTrigger value="module1" data-testid="tab-module1">Module 1 — Analyse</TabsTrigger>
-          <TabsTrigger value="module2" data-testid="tab-module2">Module 2 — Programme</TabsTrigger>
-          <TabsTrigger value="analyse" data-testid="tab-analyse">Analyse & non-conformités</TabsTrigger>
-          <TabsTrigger value="journal" data-testid="tab-journal">Journal d'audit</TabsTrigger>
+          {isRegimeA ? (
+            <>
+              <TabsTrigger value="conformite" data-testid="tab-conformite">Conformité (obligations universelles)</TabsTrigger>
+              <TabsTrigger value="amorce" data-testid="tab-amorce">Amorce (mobile)</TabsTrigger>
+              <TabsTrigger value="analyse" data-testid="tab-analyse">Analyse & non-conformités</TabsTrigger>
+              <TabsTrigger value="journal" data-testid="tab-journal">Journal d'audit</TabsTrigger>
+            </>
+          ) : (
+            <>
+              <TabsTrigger value="diagnostic" data-testid="tab-diagnostic">Aperçu du diagnostic</TabsTrigger>
+              <TabsTrigger value="apercu" data-testid="tab-apercu">Étape & aperçu</TabsTrigger>
+              <TabsTrigger value="amorce" data-testid="tab-amorce">Amorce (mobile)</TabsTrigger>
+              <TabsTrigger value="module1" data-testid="tab-module1">Module 1 — Analyse</TabsTrigger>
+              <TabsTrigger value="module2" data-testid="tab-module2">Module 2 — Programme</TabsTrigger>
+              <TabsTrigger value="analyse" data-testid="tab-analyse">Analyse & non-conformités</TabsTrigger>
+              <TabsTrigger value="journal" data-testid="tab-journal">Journal d'audit</TabsTrigger>
+            </>
+          )}
         </TabsList>
 
-        <TabsContent value="diagnostic">
-          <DiagnosticPanel dossier={dossier} onComplete={() => { if (confirmLeave()) setTab("module1"); }} />
-        </TabsContent>
-        <TabsContent value="apercu">
-          <StagePanel dossier={dossier} stageKey={activeStage} onUpdated={setDossier} onDirtyChange={(b) => { dirtyRef.current = b; }} />
-        </TabsContent>
-        <TabsContent value="amorce">
-          <AmorcePanel dossier={dossier} />
-        </TabsContent>
-        <TabsContent value="module1">
-          <Module1Form dossier={dossier} onSaved={setDossier} />
-        </TabsContent>
-        <TabsContent value="module2">
-          <Module2Programme dossier={dossier} themes={themes} onSaved={setDossier} />
-        </TabsContent>
-        <TabsContent value="analyse">
-          <AnalyseTab dossier={dossier} onMesureAdded={reload} />
-        </TabsContent>
-        <TabsContent value="journal">
-          <AuditLog dossierId={dossier.id} />
-        </TabsContent>
+        {isRegimeA ? (
+          <>
+            <TabsContent value="conformite">
+              <RegimeAConformite dossier={dossier} onGoAnalyse={() => setTab("analyse")} />
+            </TabsContent>
+            <TabsContent value="amorce">
+              <AmorcePanel dossier={dossier} />
+            </TabsContent>
+            <TabsContent value="analyse">
+              <AnalyseTab dossier={dossier} onMesureAdded={reload} />
+            </TabsContent>
+            <TabsContent value="journal">
+              <AuditLog dossierId={dossier.id} />
+            </TabsContent>
+          </>
+        ) : (
+          <>
+            <TabsContent value="diagnostic">
+              <DiagnosticPanel dossier={dossier} onComplete={() => { if (confirmLeave()) setTab("module1"); }} />
+            </TabsContent>
+            <TabsContent value="apercu">
+              <StagePanel dossier={dossier} stageKey={activeStage} onUpdated={setDossier} onDirtyChange={(b) => { dirtyRef.current = b; }} />
+            </TabsContent>
+            <TabsContent value="amorce">
+              <AmorcePanel dossier={dossier} />
+            </TabsContent>
+            <TabsContent value="module1">
+              <Module1Form dossier={dossier} onSaved={setDossier} />
+            </TabsContent>
+            <TabsContent value="module2">
+              <Module2Programme dossier={dossier} themes={themes} onSaved={setDossier} />
+            </TabsContent>
+            <TabsContent value="analyse">
+              <AnalyseTab dossier={dossier} onMesureAdded={reload} />
+            </TabsContent>
+            <TabsContent value="journal">
+              <AuditLog dossierId={dossier.id} />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </Layout>
   );

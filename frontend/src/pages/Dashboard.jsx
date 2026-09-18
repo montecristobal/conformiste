@@ -21,7 +21,7 @@ function urgencyCls(u) {
 
 function CreateDossierDialog({ clients, isPro, onCreated }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ nom_entreprise: "", neq: "", nb_employes_quebec: 0, nb_etablissements: 1, date_attestation_inscription: "", client_id: "" });
+  const [form, setForm] = useState({ nom_entreprise: "", neq: "", nb_employes_quebec: 0, nb_etablissements: 1, taille: "25_99", date_attestation_inscription: "", client_id: "" });
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
@@ -30,6 +30,7 @@ function CreateDossierDialog({ clients, isPro, onCreated }) {
       const payload = { ...form,
         nb_employes_quebec: Number(form.nb_employes_quebec) || 0,
         nb_etablissements: Number(form.nb_etablissements) || 1,
+        taille: form.taille,
         client_id: isPro ? (form.client_id || null) : null,
         date_attestation_inscription: form.date_attestation_inscription || null };
       const { data } = await api.post("/dossiers", payload);
@@ -67,6 +68,20 @@ function CreateDossierDialog({ clients, isPro, onCreated }) {
           <div className="space-y-1.5">
             <Label>Nom de l'entreprise</Label>
             <Input value={form.nom_entreprise} onChange={(e) => setForm({ ...form, nom_entreprise: e.target.value })} data-testid="dossier-nom-input" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Nombre d'employés au Québec</Label>
+            <Select value={form.taille} onValueChange={(v) => setForm({ ...form, taille: v })}>
+              <SelectTrigger data-testid="dossier-taille-select"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="moins_25">Moins de 25 employés (obligations universelles)</SelectItem>
+                <SelectItem value="25_99">Entre 25 et 99 employés (francisation)</SelectItem>
+                <SelectItem value="100_plus">100 employés et plus (francisation + comité)</SelectItem>
+              </SelectContent>
+            </Select>
+            {form.taille === "moins_25" && (
+              <p className="text-[11px] text-indigo-600">Régime des obligations universelles : pas de parcours de francisation ni d'échéance d'analyse.</p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>NEQ</Label>
@@ -181,12 +196,20 @@ export default function Dashboard() {
                   <div className="text-xs text-slate-500 mt-0.5 font-mono">NEQ {d.neq || "—"} · {d.nb_employes_quebec} employés</div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {analyse && <StatusBadge statut={analyse.statut} testId={`dossier-${d.id}-analyse-status`} />}
-                  <div className={`text-xs font-medium px-3 py-1.5 rounded-lg border ${urgencyCls(d.urgence_module1)}`} data-testid={`dossier-${d.id}-echeance`}>
-                    {d.echeance_module1
-                      ? <>Analyse due le {d.echeance_module1} · <b>{d.jours_restants_module1 < 0 ? `en retard de ${Math.abs(d.jours_restants_module1)} j` : `${d.jours_restants_module1} j`}</b></>
-                      : "Échéance non définie"}
-                  </div>
+                  {d.regime === "A" ? (
+                    <div className="text-xs font-medium px-3 py-1.5 rounded-lg border bg-indigo-50 text-indigo-800 border-indigo-200" data-testid={`dossier-${d.id}-regime`}>
+                      Obligations universelles · &lt; 25 employés
+                    </div>
+                  ) : (
+                    <>
+                      {analyse && <StatusBadge statut={analyse.statut} testId={`dossier-${d.id}-analyse-status`} />}
+                      <div className={`text-xs font-medium px-3 py-1.5 rounded-lg border ${urgencyCls(d.urgence_module1)}`} data-testid={`dossier-${d.id}-echeance`}>
+                        {d.echeance_module1
+                          ? <>Analyse due le {d.echeance_module1} · <b>{d.jours_restants_module1 < 0 ? `en retard de ${Math.abs(d.jours_restants_module1)} j` : `${d.jours_restants_module1} j`}</b></>
+                          : "Échéance non définie"}
+                      </div>
+                    </>
+                  )}
                 </div>
               </Card>
             );

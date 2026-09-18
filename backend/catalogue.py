@@ -277,6 +277,139 @@ for _t in THEMES_LEGAUX:
 
 
 
+# ==================================================================
+# Régime A — Obligations UNIVERSELLES (chap. VI/VII de la Charte),
+# applicables à TOUTE entreprise peu importe la taille (dont < 25 employés).
+# Textes vérifiés sur LégisQuébec : texte_loi_valide = True dès la création.
+# U1/U2/U6/U8/U15 sont PARTAGÉS avec A1/A2/A4/A3/A5 (même source légale) :
+# aucune duplication du texte — on réutilise l'entrée du catalogue existant.
+# ==================================================================
+_A_BY_ID = {t["id"]: t for t in THEMES_LEGAUX}
+
+
+def _shared_theme(u_id, a_id, ordre, nom, article):
+    a = _A_BY_ID[a_id]
+    return {
+        "id": u_id, "niveau": "U", "ordre": ordre, "regime": "A",
+        "shared_ref": a_id, "nom_theme": nom, "article": article,
+        "theme_echo_id": None, "libelle_oqlf": a.get("libelle_oqlf", nom),
+        "texte_loi": a.get("texte_loi", ""),
+        "texte_loi_valide": a.get("texte_loi_valide", True),
+        "note_portee": a.get("note_portee"),
+        "external_legal_object_id": None, "external_version_id": None,
+        "external_source_type": "charte_langue_francaise",
+        "external_citation": a.get("external_citation"),
+        "reference_date": a.get("reference_date"), "retrieved_at": a.get("retrieved_at"),
+        "prioritaire_amorce": True,
+    }
+
+
+def _uni_theme(u_id, ordre, nom, article, texte, citation, prioritaire=True, valide=True):
+    return {
+        "id": u_id, "niveau": "U", "ordre": ordre, "regime": "A",
+        "shared_ref": None, "nom_theme": nom, "article": article,
+        "theme_echo_id": None, "libelle_oqlf": nom,
+        "texte_loi": texte, "texte_loi_valide": valide, "note_portee": None,
+        "external_legal_object_id": None, "external_version_id": None,
+        "external_source_type": "charte_langue_francaise", "external_citation": citation,
+        "reference_date": "2022-06-01", "retrieved_at": "2026-06-01",
+        "prioritaire_amorce": prioritaire,
+    }
+
+
+UNIVERSAL_THEMES = [
+    _shared_theme("U1", "A1", 1, "Communications écrites de l'employeur", "art. 41"),
+    _shared_theme("U2", "A2", 2, "Offres d'emploi diffusées simultanément", "art. 42"),
+    _uni_theme("U3", 3, "Conventions et ententes collectives rédigées en français", "art. 43-44",
+        ("Art. 43 : Les conventions collectives et leurs annexes doivent être rédigées dans la langue "
+         "officielle [...]. Une entente collective, si elle n'est pas déjà rédigée en français, doit "
+         "également être disponible dans cette langue dès sa conclusion.\n"
+         "Art. 44 : Une version française doit être jointe immédiatement et sans délai à toute sentence "
+         "arbitrale rendue en anglais à la suite de l'arbitrage d'un grief, d'une mésentente ou d'un "
+         "différend [...]."),
+        "Charte de la langue française, RLRQ c. C-11, art. 43 et 44"),
+    _uni_theme("U4", 4, "Interdiction de représailles liées à la langue", "art. 45",
+        ("Il est interdit à un employeur de congédier, de mettre à pied, de rétrograder ou de déplacer "
+         "un membre de son personnel, d'exercer à son endroit des représailles ou de lui imposer toute "
+         "autre sanction pour la seule raison que ce dernier ne parle que le français ou qu'il ne "
+         "connaît pas suffisamment une langue donnée autre que la langue officielle, ou pour l'un ou "
+         "l'autre des motifs [liés à l'exercice de ses droits linguistiques] énumérés à l'article."),
+        "Charte de la langue française, RLRQ c. C-11, art. 45"),
+    _uni_theme("U5", 5, "Milieu de travail exempt de discrimination linguistique", "art. 45.1",
+        ("Tout salarié a droit à un milieu de travail qui soit exempt de discrimination ou de "
+         "harcèlement parce qu'il ne maîtrise pas ou peu une langue autre que la langue officielle, "
+         "parce qu'il revendique la possibilité de s'exprimer dans la langue officielle ou parce qu'il "
+         "a exigé le respect d'un droit découlant des dispositions du présent chapitre. L'employeur "
+         "doit prendre les moyens raisonnables pour prévenir ce type de conduite et, lorsqu'elle est "
+         "portée à sa connaissance, pour la faire cesser."),
+        "Charte de la langue française, RLRQ c. C-11, art. 45.1"),
+    _shared_theme("U6", "A4", 6, "Exigence de connaissance d'une autre langue", "art. 46, 46.1"),
+    _uni_theme("U7", 7, "Communications de l'association de travailleurs", "art. 48-49",
+        ("Art. 49 : Une association de travailleurs utilise la langue officielle dans les "
+         "communications écrites et orales avec ses membres. Il lui est loisible d'utiliser la langue "
+         "de son interlocuteur lorsqu'elle communique avec un membre qui lui en a fait la demande."),
+        "Charte de la langue française, RLRQ c. C-11, art. 48 et 49"),
+    _shared_theme("U8", "A3", 8, "Assurance collective", "art. 50.1"),
+    _uni_theme("U9", 9, "Droit d'être informé et servi en français", "art. 50.2",
+        ("L'entreprise qui offre au consommateur des biens ou des services doit respecter son droit "
+         "d'être informé et servi en français. L'entreprise qui offre à un public autre que des "
+         "consommateurs des biens et des services doit l'informer et le servir en français."),
+        "Charte de la langue française, RLRQ c. C-11, art. 50.2"),
+    _uni_theme("U10", 10, "Inscriptions sur produits, emballages, menus", "art. 51, 51.1",
+        ("Toute inscription sur un produit, sur son contenant ou sur son emballage, sur un document ou "
+         "objet accompagnant ce produit, y compris le mode d'emploi et les certificats de garantie, "
+         "doit être rédigée en français. Cette règle s'applique également aux menus et aux cartes des "
+         "vins. Le texte français peut être assorti d'une ou plusieurs traductions, mais aucune "
+         "inscription rédigée dans une autre langue ne doit l'emporter sur celle qui est rédigée en "
+         "français ni être accessible dans des conditions plus favorables."),
+        "Charte de la langue française, RLRQ c. C-11, art. 51 et 51.1"),
+    _uni_theme("U11", 11, "Catalogues, brochures, documents commerciaux", "art. 52",
+        ("Quel qu'en soit le support, les catalogues, les brochures, les dépliants, les annuaires "
+         "commerciaux, les bons de commande et tout autre document de même nature qui sont disponibles "
+         "au public doivent être rédigés en français."),
+        "Charte de la langue française, RLRQ c. C-11, art. 52"),
+    _uni_theme("U12", 12, "Logiciels disponibles en français", "art. 52.1",
+        ("Tout logiciel, y compris tout ludiciel ou système d'exploitation, qu'il soit installé ou "
+         "non, doit être disponible en français, à moins qu'il n'en existe aucune version française."),
+        "Charte de la langue française, RLRQ c. C-11, art. 52.1"),
+    _uni_theme("U13", 13, "Contrats d'adhésion", "art. 55",
+        ("Les contrats d'adhésion ainsi que les documents qui s'y rattachent sont rédigés en français. "
+         "Les parties peuvent être liées seulement par sa version dans une autre langue que le français "
+         "si, après que sa version française a été remise à l'adhérent, telle est leur volonté expresse."),
+        "Charte de la langue française, RLRQ c. C-11, art. 55"),
+    _uni_theme("U14", 14, "Factures, reçus, quittances", "art. 57",
+        ("Les factures, les reçus, les quittances et les autres documents de même nature sont rédigés "
+         "en français."),
+        "Charte de la langue française, RLRQ c. C-11, art. 57"),
+    _shared_theme("U15", "A5", 15, "Affichage public et publicité commerciale", "art. 58, 58.1"),
+    _uni_theme("U16", 16, "Nom de l'entreprise en français", "art. 63-68.1",
+        ("Le nom d'une entreprise doit être en langue française (art. 63). Un nom en langue française "
+         "est nécessaire à l'obtention de la personnalité juridique (art. 64). Le nom peut être assorti "
+         "d'une version dans une autre langue pourvu que, dans son utilisation, le nom de langue "
+         "française figure de façon au moins aussi évidente (art. 68)."),
+        "Charte de la langue française, RLRQ c. C-11, art. 63 à 68.1"),
+    # ---- Hors périmètre d'amorce (marginaux) : inclus mais non prioritaires.
+    # Textes non fournis intégralement → texte_loi_valide = False (prudence).
+    _uni_theme("U17", 17, "Inscriptions sur les jouets et les jeux", "art. 54",
+        ("Les jouets et les jeux visés par l'article 54 de la Charte, dont le fonctionnement exige "
+         "l'emploi d'un vocabulaire autre que français, ne peuvent être offerts sur le marché à moins "
+         "qu'une version française du jouet ou jeu ne soit disponible dans des conditions au moins "
+         "aussi favorables."),
+        "Charte de la langue française, RLRQ c. C-11, art. 54", prioritaire=False, valide=False),
+    _uni_theme("U18", 18, "Contrats relatifs à un immeuble résidentiel", "art. 55.1",
+        ("Certains contrats relatifs à un immeuble résidentiel sont visés par les règles de langue de "
+         "l'article 55.1 de la Charte."),
+        "Charte de la langue française, RLRQ c. C-11, art. 55.1", prioritaire=False, valide=False),
+]
+
+
+def themes_for_regime(regime):
+    """Catalogue de thèmes consulté par le moteur selon le régime du dossier.
+    Régime A (< 25 employés) : obligations universelles U1–U18.
+    Régime B (25 employés et plus) : catalogue de francisation A1–A5 / B1–B9 (défaut)."""
+    return UNIVERSAL_THEMES if regime == "A" else THEMES_LEGAUX
+
+
 # Étapes du cycle de vie d'un dossier (pipeline légal)
 PIPELINE_STAGES = [
     {"key": "inscription", "ordre": 1, "label": "Inscription de l'entreprise",

@@ -27,7 +27,7 @@ from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, EmailStr, Field
 from dateutil.relativedelta import relativedelta
 
-from catalogue import THEMES_LEGAUX, PIPELINE_STAGES
+from catalogue import THEMES_LEGAUX, PIPELINE_STAGES, UNIVERSAL_THEMES, themes_for_regime
 from req_lookup import simulate_req
 from pdf_export import build_module1_pdf, build_module2_pdf
 from storage import put_object, get_object, init_storage, APP_NAME, MIME_TYPES
@@ -96,6 +96,7 @@ class RegisterIn(BaseModel):
     password: str = Field(min_length=6)
     name: str
     account_type: str  # PRO | SOLO
+    taille: Optional[str] = None  # moins_25 | 25_99 | 100_plus
 
 
 class LoginIn(BaseModel):
@@ -115,6 +116,7 @@ class DossierIn(BaseModel):
     client_id: Optional[str] = None
     nb_employes_quebec: Optional[int] = 0
     nb_etablissements: Optional[int] = 1
+    taille: Optional[str] = None  # moins_25 | 25_99 | 100_plus
     date_attestation_inscription: Optional[str] = None  # ISO date
 
 
@@ -179,8 +181,20 @@ def urgence_for(days: Optional[int]) -> str:
     return "normal"
 
 
+def regime_from(taille: Optional[str], nb_employes: Optional[int] = None) -> str:
+    """Régime A (< 25 employés, obligations universelles) vs Régime B (25+, francisation)."""
+    if taille == "moins_25":
+        return "A"
+    if taille in ("25_99", "100_plus"):
+        return "B"
+    if nb_employes is not None and nb_employes < 25:
+        return "A"
+    return "B"
+
+
 def enrich_dossier(d: dict) -> dict:
     d.pop("_id", None)
+    d["regime"] = d.get("regime") or "B"
     ech = None
     if d.get("date_attestation_inscription"):
         try:
@@ -236,12 +250,14 @@ async def register(body: RegisterIn, response: Response):
     res = await db.users.insert_one(doc)
     uid = str(res.inserted_id)
     if body.account_type == "SOLO":
+        regime = regime_from(body.taille)
         ddoc = {
             "id": str(uuid.uuid4()), "owner_id": uid, "client_id": None,
             "nom_entreprise": body.name, "neq": "",
             "nb_employes_quebec": 0, "nb_etablissements": 1,
+            "regime": regime, "taille": body.taille,
             "date_attestation_inscription": None,
-            "stages": new_dossier_stages(),
+            "stages": [] if regime == "A" else new_dossier_stages(),
             "module1_data": {}, "module1_meta": {},
             "module2_admin": {}, "module2_mesures": [], "inscription_data": {},
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -299,8 +315,8 @@ async def me(user: dict = Depends(get_current_user)):
 
 # ---------------------------------------------------------------- catalogue
 @api.get("/catalogue/themes")
-async def get_themes(user: dict = Depends(get_current_user)):
-    return THEMES_LEGAUX
+async def get_themes(regime: Optional[str] = None, user: dict = Depends(get_current_user)):
+    return themes_for_regime(regime)
 
 
 @api.get("/catalogue/stages")
@@ -350,13 +366,15 @@ async def list_dossiers(client_id: Optional[str] = None,
 
 @api.post("/dossiers")
 async def create_dossier(body: DossierIn, user: dict = Depends(get_current_user)):
+    regime = regime_from(body.taille, body.nb_employes_quebec)
     doc = {
         "id": str(uuid.uuid4()), "owner_id": user["id"], "client_id": body.client_id,
         "nom_entreprise": body.nom_entreprise, "neq": body.neq,
         "nb_employes_quebec": body.nb_employes_quebec,
         "nb_etablissements": body.nb_etablissements,
+        "regime": regime, "taille": body.taille,
         "date_attestation_inscription": body.date_attestation_inscription,
-        "stages": new_dossier_stages(),
+        "stages": [] if regime == "A" else new_dossier_stages(),
         "module1_data": {}, "module1_meta": {},
         "module2_admin": {}, "module2_mesures": [],
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -676,7 +694,7 @@ class UrlIn(BaseModel):
 
 
 def theme_by_id(tid: str) -> Optional[dict]:
-    return next((t for t in THEMES_LEGAUX if t["id"] == tid), None)
+    return next((t for t in (THEMES_LEGAUX + UNIVERSAL_THEMES) if t["id"] == tid), None)
 
 
 def serialize_doc(d: dict) -> dict:
@@ -775,22 +793,24 @@ async def _analyze_and_store(doc_id: str):
     doc = await db.documents.find_one({"id": doc_id})
     if not doc or doc.get("is_deleted"):
         return
+    _dossier = await db.dossiers.find_one({"id": doc["dossier_id"]})
+    themes = themes_for_regime((_dossier or {}).get("regime"))
     try:
         if doc.get("type") == "url":
             text = await run_in_threadpool(analysis.fetch_url_text, doc["url"])
-            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc.get("original_filename", ""))
+            result = await analysis.run_llm_analysis("text", text, themes, doc.get("original_filename", ""))
         elif doc.get("kind") == "image":
             data, ct = await run_in_threadpool(get_object, doc["storage_path"])
             b64 = base64.b64encode(data).decode("utf-8")
-            result = await analysis.run_llm_analysis("image", (b64, ct), THEMES_LEGAUX, doc.get("original_filename", ""))
+            result = await analysis.run_llm_analysis("image", (b64, ct), themes, doc.get("original_filename", ""))
         elif doc.get("kind") == "pdf":
             data, ct = await run_in_threadpool(get_object, doc["storage_path"])
             text = await run_in_threadpool(analysis.extract_pdf_text, data)
-            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc.get("original_filename", ""))
+            result = await analysis.run_llm_analysis("text", text, themes, doc.get("original_filename", ""))
         else:
             data, ct = await run_in_threadpool(get_object, doc["storage_path"])
             text = data.decode("utf-8", errors="ignore")
-            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc.get("original_filename", ""))
+            result = await analysis.run_llm_analysis("text", text, themes, doc.get("original_filename", ""))
     except Exception as e:
         logger.warning(f"analyse auto échouée pour {doc_id}: {e}")
         return
@@ -808,25 +828,27 @@ async def _analyze_and_store(doc_id: str):
 @api.post("/documents/{doc_id}/analyze")
 async def analyze_document(doc_id: str, user: dict = Depends(get_current_user)):
     doc = await get_owned_document(doc_id, user)
+    _dossier = await db.dossiers.find_one({"id": doc["dossier_id"]})
+    themes = themes_for_regime((_dossier or {}).get("regime"))
     try:
         if doc["type"] == "url":
             text = await run_in_threadpool(analysis.fetch_url_text, doc["url"])
-            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc.get("original_filename", ""))
+            result = await analysis.run_llm_analysis("text", text, themes, doc.get("original_filename", ""))
         elif doc.get("kind") == "image":
             data, ct = await run_in_threadpool(get_object, doc["storage_path"])
             b64 = base64.b64encode(data).decode("utf-8")
-            result = await analysis.run_llm_analysis("image", (b64, ct), THEMES_LEGAUX, doc["original_filename"])
+            result = await analysis.run_llm_analysis("image", (b64, ct), themes, doc["original_filename"])
         elif doc.get("kind") == "pdf":
             data, ct = await run_in_threadpool(get_object, doc["storage_path"])
             text = await run_in_threadpool(analysis.extract_pdf_text, data)
-            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc["original_filename"])
+            result = await analysis.run_llm_analysis("text", text, themes, doc["original_filename"])
         else:
             data, ct = await run_in_threadpool(get_object, doc["storage_path"])
             try:
                 text = data.decode("utf-8", errors="ignore")
             except Exception:
                 text = ""
-            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc["original_filename"])
+            result = await analysis.run_llm_analysis("text", text, themes, doc["original_filename"])
     except HTTPException:
         raise
     except analysis.UrlValidationError as e:
@@ -982,8 +1004,9 @@ def _amorce_public(s: dict, dossier_nom: str = "") -> dict:
         "status": _amorce_effective_status(s),
         "dossier_nom": dossier_nom or s.get("dossier_nom", ""),
         "expires_at": s["expires_at"],
-        "questions": amorce.AMORCE_QUESTIONS,
-        "photo_categories": amorce.AMORCE_PHOTO_CATEGORIES,
+        "regime": s.get("regime", "B"),
+        "questions": amorce.questions_for_regime(s.get("regime")),
+        "photo_categories": amorce.photo_categories_for_regime(s.get("regime")),
         "answers": s.get("answers", {}),
         "answered_keys": list((s.get("answers") or {}).keys()),
         "photos": s.get("photos", []),
@@ -1015,6 +1038,7 @@ async def create_amorce_session(dossier_id: str, user: dict = Depends(get_curren
     s = {
         "id": token, "dossier_id": dossier_id, "owner_id": user["id"],
         "dossier_nom": d.get("nom_entreprise", ""),
+        "regime": d.get("regime") or "B",
         "status": "active",
         "created_at": now.isoformat(),
         "expires_at": (now + timedelta(minutes=AMORCE_TTL_MIN)).isoformat(),
@@ -1122,7 +1146,7 @@ async def amorce_upload_photo(session_id: str, background: BackgroundTasks,
     entry = {"category": category, "label": label, "document_id": doc["id"],
              "created_at": doc["created_at"]}
     await db.amorce_sessions.update_one({"id": session_id}, {"$push": {"photos": entry}})
-    if category in ("facade", "enseigne", "affichage_interieur", "poste_travail", "offre_emploi"):
+    if category in amorce.AMORCE_ANALYZE_CATS:
         background.add_task(_analyze_and_store, doc["id"])
     return {"ok": True, "document_id": doc["id"], "category": category, "label": label}
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, File, Files, Check, ArrowRight, FileText, Scale, Layers,
@@ -171,9 +171,13 @@ function DashboardPreview({ mode = "SOLO" }) {
 export default function Welcome() {
   const [mode, setMode] = useState("SOLO");
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+  const taille = location.state?.taille;
 
   if (user) return <Navigate to="/dashboard" replace />;
+  if (!taille) return <Navigate to="/" replace />;
+  const regimeA = taille === "moins_25";
 
   return (
     <div className="relative min-h-screen form-grid-bg overflow-hidden">
@@ -228,6 +232,15 @@ export default function Welcome() {
 
         <div className="mt-14">
           <h2 className="font-display text-lg font-bold text-slate-700 mb-4">Choisissez votre version</h2>
+          <div className={`mb-5 flex flex-wrap items-center gap-2 rounded-xl border px-4 py-3 text-sm ${regimeA ? "bg-indigo-50 border-indigo-200 text-indigo-800" : "bg-blue-50 border-blue-200 text-blue-800"}`} data-testid="welcome-regime-banner">
+            <span className="font-semibold">
+              {regimeA ? "Moins de 25 employés" : taille === "25_99" ? "Entre 25 et 99 employés" : "100 employés et plus"}
+            </span>
+            <span className="opacity-80">
+              — {regimeA ? "obligations universelles de la Charte (sans parcours de francisation)." : "parcours de francisation applicable."}
+            </span>
+            <button className="ml-auto underline hover:no-underline" onClick={() => navigate("/")} data-testid="welcome-change-size">Modifier</button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <p className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
@@ -245,7 +258,7 @@ export default function Welcome() {
 
           <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
             <Button size="lg" data-testid="welcome-continue-button"
-              onClick={() => navigate("/register", { state: { account_type: mode } })}
+              onClick={() => navigate("/register", { state: { account_type: mode, taille } })}
               className="bg-[#0F2B48] hover:bg-[#0F2B48]/90 w-full sm:w-auto">
               Continuer en version {mode} <ArrowRight size={18} className="ml-2" />
             </Button>

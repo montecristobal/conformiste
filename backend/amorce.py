@@ -51,6 +51,37 @@ AMORCE_PHOTO_CATEGORIES = [
     {"key": "autre", "label": "Autre", "hint": "Tout autre élément pertinent."},
 ]
 
+# --- Régime A (< 25 employés) : obligations universelles.
+# On retire les questions vocales propres à la francisation (% CA hors Québec,
+# établissements) qui n'ont pas de sens sous ce régime, et on cible des photos
+# pertinentes pour les obligations universelles (produits, factures, menus…).
+AMORCE_QUESTIONS_A = [q for q in AMORCE_QUESTIONS if q["key"] in ("q1_neq", "q2_site", "q3_employes")]
+
+AMORCE_PHOTO_CATEGORIES_A = [
+    {"key": "facade", "label": "Façade", "hint": "L'extérieur du bâtiment."},
+    {"key": "enseigne", "label": "Enseigne", "hint": "L'enseigne commerciale visible de la rue."},
+    {"key": "affichage_interieur", "label": "Affichage intérieur", "hint": "Affiches, prix à l'intérieur."},
+    {"key": "produits_emballages", "label": "Produits / emballages",
+     "hint": "Étiquettes, emballages, modes d'emploi, certificats de garantie."},
+    {"key": "menus", "label": "Menus / carte des vins", "hint": "Menus et cartes des vins, le cas échéant."},
+    {"key": "factures", "label": "Factures / reçus", "hint": "Factures, reçus, contrats types, dépliants."},
+    {"key": "autre", "label": "Autre", "hint": "Tout autre élément pertinent."},
+]
+
+# Catégories de photos auto-analysées par la vision LLM en tâche de fond.
+AMORCE_ANALYZE_CATS = {
+    "facade", "enseigne", "affichage_interieur", "poste_travail", "offre_emploi",
+    "produits_emballages", "menus", "factures", "documents",
+}
+
+
+def questions_for_regime(regime):
+    return AMORCE_QUESTIONS_A if regime == "A" else AMORCE_QUESTIONS
+
+
+def photo_categories_for_regime(regime):
+    return AMORCE_PHOTO_CATEGORIES_A if regime == "A" else AMORCE_PHOTO_CATEGORIES
+
 _CT_EXT = {
     "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp",
     "image/heic": "heic", "image/heif": "heif",
