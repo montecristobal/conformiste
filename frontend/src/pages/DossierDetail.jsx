@@ -18,6 +18,7 @@ import { AnalyseTab } from "@/components/AnalyseTab";
 import { AuditLog } from "@/components/AuditLog";
 import { OqlfInscriptionForm } from "@/components/OqlfInscriptionForm";
 import { AmorcePanel } from "@/components/AmorcePanel";
+import { DiagnosticPanel } from "@/components/DiagnosticPanel";
 import { toast } from "sonner";
 import { ArrowLeft, Send, MessageSquarePlus, Calendar, FileDown } from "lucide-react";
 
@@ -112,7 +113,7 @@ export default function DossierDetail() {
   const [dossier, setDossier] = useState(null);
   const [themes, setThemes] = useState([]);
   const [activeStage, setActiveStage] = useState("inscription");
-  const [tab, setTab] = useState("apercu");
+  const [tab, setTab] = useState("diagnostic");
   const dirtyRef = useRef(false);
 
   const confirmLeave = () => {
@@ -159,6 +160,7 @@ export default function DossierDetail() {
 
       <Tabs value={tab} onValueChange={(v) => { if (confirmLeave()) setTab(v); }}>
         <TabsList className="mb-4">
+          <TabsTrigger value="diagnostic" data-testid="tab-diagnostic">Aperçu du diagnostic</TabsTrigger>
           <TabsTrigger value="apercu" data-testid="tab-apercu">Étape & aperçu</TabsTrigger>
           <TabsTrigger value="amorce" data-testid="tab-amorce">Amorce (mobile)</TabsTrigger>
           <TabsTrigger value="module1" data-testid="tab-module1">Module 1 — Analyse</TabsTrigger>
@@ -167,6 +169,9 @@ export default function DossierDetail() {
           <TabsTrigger value="journal" data-testid="tab-journal">Journal d'audit</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="diagnostic">
+          <DiagnosticPanel dossier={dossier} onComplete={() => { if (confirmLeave()) setTab("module1"); }} />
+        </TabsContent>
         <TabsContent value="apercu">
           <StagePanel dossier={dossier} stageKey={activeStage} onUpdated={setDossier} onDirtyChange={(b) => { dirtyRef.current = b; }} />
         </TabsContent>

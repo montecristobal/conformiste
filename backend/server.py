@@ -34,6 +34,7 @@ from storage import put_object, get_object, init_storage, APP_NAME, MIME_TYPES
 import analysis
 import mailer
 import amorce
+import diagnostic
 
 # ---------------------------------------------------------------- DB / app
 mongo_url = os.environ["MONGO_URL"]
@@ -1009,17 +1010,42 @@ async def revoke_amorce_session(dossier_id: str, user: dict = Depends(get_curren
     return {"ok": True}
 
 
+async def _merge_amorce_answers(dossier_id: str) -> dict:
+    """Fusionne les réponses de toutes les sessions d'amorce du dossier (la plus récente prime)."""
+    merged = {}
+    cursor = db.amorce_sessions.find({"dossier_id": dossier_id}).sort("created_at", 1)
+    async for s in cursor:
+        for k, v in (s.get("answers") or {}).items():
+            merged[k] = v
+    return merged
+
+
 @api.get("/dossiers/{dossier_id}/amorce/proposals")
 async def amorce_module1_proposals(dossier_id: str, user: dict = Depends(get_current_user)):
     await get_owned_dossier(dossier_id, user)
-    s = await db.amorce_sessions.find_one(
-        {"dossier_id": dossier_id, "answers": {"$exists": True, "$ne": {}}},
-        sort=[("created_at", -1)])
-    if not s or not s.get("answers"):
+    answers = await _merge_amorce_answers(dossier_id)
+    if not answers:
         return {"proposals": [], "warnings": ["Aucune réponse vocale d'amorce n'est disponible pour ce dossier."]}
-    proposals = amorce.build_module1_proposals(s.get("answers"))
+    proposals = amorce.build_module1_proposals(answers)
     await audit(dossier_id, user, "Report de l'entrevue vocale (amorce) vers le Module 1")
     return {"proposals": proposals, "warnings": []}
+
+
+@api.get("/dossiers/{dossier_id}/diagnostic")
+async def get_dossier_diagnostic(dossier_id: str, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    m1 = dict(d.get("module1_data") or {})
+    # repli sur l'amorce : préremplit les clés manquantes à partir des réponses vocales
+    answers = await _merge_amorce_answers(dossier_id)
+    for p in amorce.build_module1_proposals(answers):
+        m1.setdefault(p["key"], p["value"])
+    employes = diagnostic._num(m1.get("s4.employes_quebec"))
+    if employes is None:
+        employes = d.get("nb_employes_quebec") or 0
+    else:
+        employes = int(employes)
+    jours = d.get("jours_restants_module1")
+    return diagnostic.compute_diagnostic(m1, employes, jours)
 
 
 # ---- routes publiques (téléphone, jeton dans l'URL, sans login)
