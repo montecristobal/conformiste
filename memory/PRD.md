@@ -188,3 +188,18 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Textes de loi de **l'article 141** (chapeau + paragraphes 1° à 9°, fournis par le client) insérés dans B1…B9 avec `texte_loi_valide=True` → le moteur peut désormais rendre « non conforme » sur A1–A5 **et** B1–B9 (tous les thèmes du catalogue sont validés).
 - **`note_portee` commune** (art. 141) : le but est la généralisation du français ; l'article énumère les MOYENS ; objectif à pondérer, obligation de moyens et non de résultat absolu.
 - Champs de référence renseignés (external_citation art. 141, reference_date 2022-06-01). Tests pytest mis à jour (prudence pour tous thèmes validés, `test_themes_have_external_fields` rendu dynamique, `test_cron_idempotent` déterministe par stabilisation) — **98/98 verts**.
+
+## Implémenté (2026-06 — itération 19, Segmentation par taille : Régime A / Régime B)
+- **Écran d'entrée AVANT connexion** (`SizeGate.jsx` à `/`, l'ancien Welcome passe à `/welcome`) : demande le nombre d'employés au Québec (3 choix : moins de 25 / 25-99 / 100+) avant même le choix SOLO/PRO. La taille est propagée en state jusqu'à `/register`. `Welcome` redirige vers `/` si aucune taille (bannière `welcome-regime-banner`, lien « Modifier »).
+- **Le régime s'attache au DOSSIER** (`regime_from`) : `moins_25 → A`, `25_99`/`100_plus` → B. Dossier SOLO auto-créé à l'inscription et dossiers PRO (`Dashboard` → `dossier-taille-select`) portent `regime`/`taille`. Régime A → `stages=[]` (aucun pipeline).
+- **Catalogue Régime A — obligations universelles U1–U18** (`catalogue.py UNIVERSAL_THEMES`, `themes_for_regime`) : textes LégisQuébec insérés, `texte_loi_valide=True` dès la création (sauf U17 art. 54 / U18 art. 55.1, marginaux, non prioritaires). U1/U2/U6/U8/U15 = partagés avec A1/A2/A4/A3/A5 (même texte légal, `shared_ref`). `GET /catalogue/themes?regime=A|B`.
+- **Tableau de bord Régime A** (`RegimeAConformite.jsx`) : liste des 18 thèmes U avec statut (conforme/à valider/non conforme/non évalué) dérivé du plan de correction, texte de loi dépliable, bouton vers l'onglet Analyse. `DossierDetail` branche sur `isRegimeA` : onglets Conformité (défaut) / Amorce / Analyse / Journal ; PAS de pipeline, diagnostic EP, Module 1, Module 2.
+- **Moteur d'analyse conscient du régime** : `_analyze_and_store` et `analyze_document` consultent `themes_for_regime(dossier.regime)`. `theme_by_id` cherche dans A/B + U.
+- **Amorce mobile adaptée Régime A** (`amorce.questions_for_regime`/`photo_categories_for_regime`) : 3 questions vocales (NEQ, site, employés) sans % CA hors QC ni établissements ; photos façade/enseigne/affichage intérieur/produits-emballages/menus/factures/autre. Auto-analyse en tâche de fond élargie (`AMORCE_ANALYZE_CATS`).
+- Régime B (25+) inchangé (non-régression validée). Vérifié : pytest 98/98 + `test_segmentation_regime.py` 9/9 + testing agent frontend 100 % (SizeGate, Welcome A/B, Register A/B, DossierDetail A/B, badge Dashboard PRO, amorce mobile A). Aucun bug.
+
+## Prochaines tâches (backlog)
+- **Stripe Payments (P0)** : abonnements PRO/SOLO (clé env disponible dans le pod).
+- **Module 2 (P1)** : autres formulaires/modules.
+- **Storage S3/R2 (P1)** : migration depuis le repli Emergent quand identifiants fournis.
+- **Préférences courriel (P2)**, **Résumé hebdomadaire portefeuille PRO (P2)**.
