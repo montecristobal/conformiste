@@ -12,6 +12,7 @@ export default function Register() {
   const location = useLocation();
   const [accountType, setAccountType] = useState(location.state?.account_type || "SOLO");
   const taille = location.state?.taille || null;
+  const nbEmployes = location.state?.nb_employes ?? null;
   const regimeA = taille === "moins_25";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -25,7 +26,7 @@ export default function Register() {
     e.preventDefault();
     setBusy(true); setError("");
     try {
-      await register({ name, email, password, account_type: accountType, taille });
+      await register({ name, email, password, account_type: accountType, taille, nb_employes: nbEmployes });
       navigate("/dashboard");
     } catch (err) {
       setError(formatApiError(err.response?.data?.detail) || err.message);
@@ -45,7 +46,7 @@ export default function Register() {
         {taille && (
           <div className={`mb-5 rounded-xl border px-3 py-2 text-xs ${regimeA ? "bg-indigo-50 border-indigo-200 text-indigo-800" : "bg-blue-50 border-blue-200 text-blue-800"}`} data-testid="register-regime-note">
             {regimeA
-              ? "Moins de 25 employés — régime des obligations universelles (aucun parcours de francisation)."
+              ? `Moins de 25 employés${nbEmployes != null ? ` (${nbEmployes})` : ""} — parcours PME : obligations universelles${nbEmployes != null && nbEmployes >= 5 ? " + déclaration REQ" : ""} (sans francisation).`
               : (taille === "100_plus" ? "100 employés et plus" : "Entre 25 et 99 employés") + " — parcours de francisation."}
           </div>
         )}

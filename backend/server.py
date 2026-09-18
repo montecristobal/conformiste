@@ -27,7 +27,7 @@ from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, EmailStr, Field
 from dateutil.relativedelta import relativedelta
 
-from catalogue import THEMES_LEGAUX, PIPELINE_STAGES, UNIVERSAL_THEMES, themes_for_regime
+from catalogue import THEMES_LEGAUX, PIPELINE_STAGES, UNIVERSAL_THEMES, themes_for_regime, REGIME_A_LEGAL_FRAMEWORK
 from req_lookup import simulate_req
 from pdf_export import build_module1_pdf, build_module2_pdf
 from storage import put_object, get_object, init_storage, APP_NAME, MIME_TYPES
@@ -97,6 +97,7 @@ class RegisterIn(BaseModel):
     name: str
     account_type: str  # PRO | SOLO
     taille: Optional[str] = None  # moins_25 | 25_99 | 100_plus
+    nb_employes: Optional[int] = None  # nombre exact d'employés au Québec (Régime A)
 
 
 class LoginIn(BaseModel):
@@ -210,6 +211,8 @@ def enrich_dossier(d: dict) -> dict:
     d["urgence_module1"] = urgence_for(jours)
     d["comite_requis"] = (d.get("nb_employes_quebec") or 0) >= 100
     d["annexe_ii_requise"] = (d.get("nb_etablissements") or 1) > 1
+    d["req_declaration_requise"] = d.get("regime") == "A" and (d.get("nb_employes_quebec") or 0) >= 5
+    d.setdefault("req_declaration", None)
     return d
 
 
@@ -254,7 +257,7 @@ async def register(body: RegisterIn, response: Response):
         ddoc = {
             "id": str(uuid.uuid4()), "owner_id": uid, "client_id": None,
             "nom_entreprise": body.name, "neq": "",
-            "nb_employes_quebec": 0, "nb_etablissements": 1,
+            "nb_employes_quebec": body.nb_employes or 0, "nb_etablissements": 1,
             "regime": regime, "taille": body.taille,
             "date_attestation_inscription": None,
             "stages": [] if regime == "A" else new_dossier_stages(),
@@ -675,6 +678,33 @@ async def export_module1(dossier_id: str, user: dict = Depends(get_current_user)
     fn = f"analyse_linguistique_{d.get('neq') or dossier_id}.pdf"
     return StreamingResponse(buf, media_type="application/pdf",
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
+@api.get("/catalogue/regime-a-framework")
+async def get_regime_a_framework(user: dict = Depends(get_current_user)):
+    return REGIME_A_LEGAL_FRAMEWORK
+
+
+class ReqDeclarationIn(BaseModel):
+    nb_employes_non_francophones: int = 0
+
+
+@api.put("/dossiers/{dossier_id}/req-declaration")
+async def save_req_declaration(dossier_id: str, body: ReqDeclarationIn,
+                               user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    total = d.get("nb_employes_quebec") or 0
+    n = max(0, min(body.nb_employes_non_francophones, total))
+    proportion = round((n / total) * 100, 1) if total else 0.0
+    decl = {"nb_employes_non_francophones": n, "total_employes": total,
+            "proportion_non_francophone": proportion,
+            "updated_at": datetime.now(timezone.utc).isoformat()}
+    await db.dossiers.update_one({"id": dossier_id},
+                                 {"$set": {"req_declaration": decl, "updated_at": decl["updated_at"]}})
+    await audit(dossier_id, user,
+                f"Déclaration REQ enregistrée : {n}/{total} employé(s) ne pouvant communiquer en français ({proportion} %)")
+    updated = await db.dossiers.find_one({"id": dossier_id})
+    return enrich_dossier(updated)
 
 
 @api.get("/dossiers/{dossier_id}/export/regime-a")

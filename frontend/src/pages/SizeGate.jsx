@@ -96,7 +96,7 @@ export default function SizeGate() {
 
           <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
             <Button size="lg" disabled={!taille} data-testid="size-continue-button"
-              onClick={() => navigate("/welcome", { state: { taille } })}
+              onClick={() => navigate(taille === "moins_25" ? "/parcours-pme" : "/welcome", { state: { taille } })}
               className="bg-[#0F2B48] hover:bg-[#0F2B48]/90 w-full sm:w-auto">
               Continuer <ArrowRight size={18} className="ml-2" />
             </Button>

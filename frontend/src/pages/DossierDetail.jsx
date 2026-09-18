@@ -20,6 +20,8 @@ import { OqlfInscriptionForm } from "@/components/OqlfInscriptionForm";
 import { AmorcePanel } from "@/components/AmorcePanel";
 import { DiagnosticPanel } from "@/components/DiagnosticPanel";
 import { RegimeAConformite } from "@/components/RegimeAConformite";
+import { ParcoursAStepper } from "@/components/ParcoursAStepper";
+import { RegimeAReq } from "@/components/RegimeAReq";
 import { toast } from "sonner";
 import { ArrowLeft, Send, MessageSquarePlus, Calendar, FileDown } from "lucide-react";
 
@@ -151,8 +153,15 @@ export default function DossierDetail() {
           <p className="text-sm text-slate-500 font-mono">NEQ {dossier.neq || "—"} · {dossier.nb_employes_quebec} employés · {dossier.nb_etablissements} établissement(s)</p>
         </div>
         {isRegimeA ? (
-          <div className="text-sm px-4 py-2 rounded-xl border bg-indigo-50 text-indigo-800 border-indigo-200" data-testid="regime-a-badge">
-            Obligations universelles · moins de 25 employés
+          <div className="flex flex-col items-end gap-2">
+            <div className="text-sm px-4 py-2 rounded-xl border bg-indigo-50 text-indigo-800 border-indigo-200" data-testid="regime-a-badge">
+              Parcours PME · {dossier.nb_employes_quebec} employé(s) au Québec
+            </div>
+            {dossier.req_declaration_requise && (
+              <div className="text-xs px-3 py-1.5 rounded-lg border bg-white text-indigo-700 border-indigo-200" data-testid="regime-a-req-badge">
+                Déclaration REQ {dossier.req_declaration ? "enregistrée" : "requise"}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-end gap-2">
@@ -170,7 +179,11 @@ export default function DossierDetail() {
         )}
       </div>
 
-      {!isRegimeA && (
+      {isRegimeA ? (
+        <Card className="p-4 mb-6">
+          <ParcoursAStepper dossier={dossier} active={tab || defaultTab} onSelect={(k) => setTab(k)} />
+        </Card>
+      ) : (
         <Card className="p-4 mb-6">
           <PipelineStepper stages={visibleStages} activeKey={activeStage} onSelect={(k) => { if (confirmLeave()) { setActiveStage(k); setTab("apercu"); } }} />
         </Card>
@@ -180,10 +193,12 @@ export default function DossierDetail() {
         <TabsList className="mb-4">
           {isRegimeA ? (
             <>
-              <TabsTrigger value="conformite" data-testid="tab-conformite">Conformité (obligations universelles)</TabsTrigger>
+              <TabsTrigger value="conformite" data-testid="tab-conformite">Obligations universelles</TabsTrigger>
+              <TabsTrigger value="req" data-testid="tab-req">Déclaration REQ</TabsTrigger>
               <TabsTrigger value="amorce" data-testid="tab-amorce">Amorce (mobile)</TabsTrigger>
               <TabsTrigger value="analyse" data-testid="tab-analyse">Analyse & non-conformités</TabsTrigger>
               <TabsTrigger value="journal" data-testid="tab-journal">Journal d'audit</TabsTrigger>
+              <TabsTrigger value="plainte" data-testid="tab-plainte" disabled>Plainte (à venir)</TabsTrigger>
             </>
           ) : (
             <>
@@ -202,6 +217,9 @@ export default function DossierDetail() {
           <>
             <TabsContent value="conformite">
               <RegimeAConformite dossier={dossier} onGoAnalyse={() => setTab("analyse")} />
+            </TabsContent>
+            <TabsContent value="req">
+              <RegimeAReq dossier={dossier} onSaved={setDossier} />
             </TabsContent>
             <TabsContent value="amorce">
               <AmorcePanel dossier={dossier} />

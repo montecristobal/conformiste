@@ -204,7 +204,16 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - **Résumé hebdomadaire PRO** (`generate_weekly_summary`, `POST /cron/weekly-summary`, cron `resume-hebdo` lundi 12:00 UTC dans `.emergent/crons.yml`) : un courriel par consultant PRO listant les échéances d'analyse dans les 30 jours ou en retard de tout son portefeuille (`mailer.send_weekly_summary_email`, scan anti-phishing OK). Endpoint sécurisé par `WEBHOOK_CRON_SECRET`, travail en tâche de fond.
 - Vérifié : endpoints curl (PDF 200 %PDF-, cron 200 accepted, 401 sur mauvais secret), captures Régime A (bouton PDF) et Régime B (badge comité).
 
+## Implémenté (2026-06 — itération 21, Parcours PME Régime A < 25 employés)
+- **Écran explicatif pré-connexion** (`RegimeAIntro.jsx`, route `/parcours-pme`) : atteint quand l'utilisateur choisit « Moins de 25 employés » sur `SizeGate`. Explique que la PME n'est pas suivie par l'Office **sauf plainte**, présente les 3 étapes du parcours et **capture le nombre exact d'employés** (0–24).
+- **Parcours guidé post-connexion Régime A** (`ParcoursAStepper.jsx`) : Étape 1 Obligations universelles (U1–U18) · Étape 2 Déclaration au REQ (requise si ≥ 5 employés) · Étape 3 Traitement d'une plainte (désactivé, « à venir »). Onglets `tab-conformite`, `tab-req`, amorce, analyse, journal, `tab-plainte` (disabled).
+- **Module Déclaration REQ** (`RegimeAReq.jsx`, `PUT /dossiers/{id}/req-declaration`) : champ pour consigner le nombre d'employés ne pouvant communiquer en français, proportion calculée (aide-mémoire, sans soumission au REQ). Affiché uniquement si ≥ 5 employés ; sinon « non applicable ». Stocké dans `dossier.req_declaration`.
+- **Cadre légal** (`catalogue.REGIME_A_LEGAL_FRAMEWORK`, `GET /catalogue/regime-a-framework`) : art. 149, 150, 151, 152.1 (Charte) + art. 33, 10° (P‑44.1), `texte_loi_valide=true`, textes dépliables dans l'onglet Déclaration REQ.
+- **Nombre exact d'employés** capturé : `RegisterIn.nb_employes` (SOLO) et champ existant du dialogue PRO. `enrich_dossier` calcule `req_declaration_requise = regime A et nb_employes ≥ 5`. En-tête du dossier : badge « Parcours PME · N employés » + « Déclaration REQ requise/enregistrée ».
+- Vérifié : pytest 98/98 + segmentation 14/14 (dont 5 nouveaux tests parcours PME), captures Régime A (stepper, onglet REQ, cadre légal). Le **traitement d'une plainte reste pour une itération ultérieure** (placeholder).
+
 ## Prochaines tâches (backlog)
+- **Traitement d'une plainte (Régime A)** : parcours guidé pour régler une non-conformité issue d'une plainte à l'Office.
 - **Stripe Payments (P0)** : abonnements PRO/SOLO (clé env disponible dans le pod).
 - **Module 2 (P1)** : autres formulaires/modules.
 - **Storage S3/R2 (P1)** : migration depuis le repli Emergent quand identifiants fournis.

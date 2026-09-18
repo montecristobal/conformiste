@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import Welcome from "@/pages/Welcome";
 import SizeGate from "@/pages/SizeGate";
+import RegimeAIntro from "@/pages/RegimeAIntro";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
@@ -32,6 +33,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<SizeGate />} />
+          <Route path="/parcours-pme" element={<RegimeAIntro />} />
           <Route path="/welcome" element={<Welcome />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

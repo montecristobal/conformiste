@@ -193,3 +193,56 @@ class TestAmorceRegimeA:
         cat_keys = [c.get("key") if isinstance(c, dict) else c for c in cats]
         # Just check it's a list; specific keys checked in a soft way
         assert len(cat_keys) >= 3
+
+
+
+@pytest.fixture(scope="module")
+def solo_a5_client():
+    """SOLO Regime A with exactly 8 employees (>= 5 -> REQ declaration required)."""
+    s = requests.Session()
+    s.headers.update({"Content-Type": "application/json"})
+    email = f"TEST_solo_a5_{uuid.uuid4().hex[:8]}@example.com"
+    r = s.post(f"{API}/auth/register", json={
+        "name": "TEST_SoloA5", "email": email, "password": "Password123!",
+        "account_type": "SOLO", "taille": "moins_25", "nb_employes": 8,
+    })
+    assert r.status_code == 200, r.text
+    s.headers.update({"Authorization": f"Bearer {r.json()['access_token']}"})
+    return s
+
+
+# ---------- Parcours PME (Regime A) : declaration REQ + cadre legal ----------
+class TestRegimeAParcours:
+    def test_req_framework_returns_five_articles(self, solo_a_client):
+        r = solo_a_client.get(f"{API}/catalogue/regime-a-framework")
+        assert r.status_code == 200
+        ids = [x["id"] for x in r.json()]
+        assert ids == ["C149", "C150", "C151", "C152_1", "P33_10"]
+        assert all(x["texte_loi_valide"] is True for x in r.json())
+
+    def test_less_than_5_employees_req_not_required(self, solo_a_client):
+        d = solo_a_client.get(f"{API}/dossiers").json()[0]
+        # solo_a_client registered without nb_employes -> 0 employees
+        assert d["req_declaration_requise"] is False
+
+    def test_5_plus_employees_req_required(self, solo_a5_client):
+        d = solo_a5_client.get(f"{API}/dossiers").json()[0]
+        assert d["nb_employes_quebec"] == 8
+        assert d["req_declaration_requise"] is True
+
+    def test_save_req_declaration_computes_proportion(self, solo_a5_client):
+        did = solo_a5_client.get(f"{API}/dossiers").json()[0]["id"]
+        r = solo_a5_client.put(f"{API}/dossiers/{did}/req-declaration",
+                               json={"nb_employes_non_francophones": 2})
+        assert r.status_code == 200, r.text
+        decl = r.json()["req_declaration"]
+        assert decl["nb_employes_non_francophones"] == 2
+        assert decl["total_employes"] == 8
+        assert decl["proportion_non_francophone"] == 25.0
+
+    def test_req_declaration_clamped_to_total(self, solo_a5_client):
+        did = solo_a5_client.get(f"{API}/dossiers").json()[0]["id"]
+        r = solo_a5_client.put(f"{API}/dossiers/{did}/req-declaration",
+                               json={"nb_employes_non_francophones": 999})
+        assert r.status_code == 200
+        assert r.json()["req_declaration"]["nb_employes_non_francophones"] == 8

@@ -410,6 +410,66 @@ def themes_for_regime(regime):
     return UNIVERSAL_THEMES if regime == "A" else THEMES_LEGAUX
 
 
+# ==================================================================
+# Cadre légal du PARCOURS Régime A (< 25 employés).
+# Une petite entreprise n'est pas suivie par l'Office SAUF plainte, mais elle demeure
+# assujettie aux articles exécutoires. Les entreprises d'au moins 5 employés doivent en
+# outre déclarer au registre (REQ) la proportion d'employés ne pouvant communiquer en
+# français (art. 149 Charte + art. 33, 10° P-44.1). Sources vérifiées : texte_loi_valide=True.
+# ==================================================================
+REGIME_A_LEGAL_FRAMEWORK = [
+    {"id": "C149", "article": "art. 149 (Charte)",
+     "titre": "Offre de services d'apprentissage du français (entreprises d'au moins 5 employés)",
+     "texte_loi": ("L'Office, après consultation de Francisation Québec, détermine annuellement, dans les "
+                   "secteurs d'activités qu'il choisit, les entreprises assujetties à la Loi sur la publicité "
+                   "légale des entreprises (chapitre P-44.1) qui emploient au moins cinq personnes, sans être "
+                   "visées à l'article 139, auxquelles il offrira de mettre en place les services d'apprentissage "
+                   "du français fournis par Francisation Québec conformément au chapitre VIII.2 du titre I. "
+                   "L'Office avise l'entreprise concernée de l'offre qui lui est faite et du délai dont elle "
+                   "dispose pour l'accepter et, le cas échéant, pour convenir avec Francisation Québec des "
+                   "modalités selon lesquelles ces services seront fournis. L'Office transmet une copie de cet "
+                   "avis à Francisation Québec."),
+     "external_citation": "Charte de la langue française, RLRQ c. C-11, art. 149", "texte_loi_valide": True},
+    {"id": "C150", "article": "art. 150 (Charte)",
+     "titre": "Accès des employés aux services d'apprentissage du français",
+     "texte_loi": ("L'entreprise qui met en place des services d'apprentissage du français fournis par "
+                   "Francisation Québec est tenue de permettre aux personnes à son emploi qui ne sont pas en "
+                   "mesure de communiquer en français de recevoir ces services. L'article 137.1 s'applique à "
+                   "ces personnes, compte tenu des adaptations nécessaires."),
+     "external_citation": "Charte de la langue française, RLRQ c. C-11, art. 150", "texte_loi_valide": True},
+    {"id": "C151", "article": "art. 151 (Charte)",
+     "titre": "Pouvoir d'exiger une analyse et un programme (entreprises de moins de 50 employés) — entente particulière",
+     "texte_loi": ("Avec l'approbation du ministre de la Langue française, l'Office peut, à condition d'en "
+                   "publier avis à la Gazette officielle du Québec, exiger d'une entreprise employant moins de "
+                   "50 personnes qu'elle procède à l'analyse de sa situation linguistique, à l'élaboration et à "
+                   "l'application d'un programme de francisation. Si une telle entreprise a besoin d'un délai "
+                   "pour se conformer à certaines dispositions, elle peut demander l'aide de l'Office et conclure "
+                   "avec lui une entente particulière ; dans ce cadre, l'Office peut, pour la période qu'il "
+                   "détermine, l'exempter de l'application de toute disposition de la loi ou d'un règlement."),
+     "external_citation": "Charte de la langue française, RLRQ c. C-11, art. 151", "texte_loi_valide": True},
+    {"id": "C152_1", "article": "art. 152.1 (Charte)",
+     "titre": "Contrats et subventions de l'Administration conditionnés au respect du processus",
+     "texte_loi": ("L'Administration ne peut conclure un contrat avec une entreprise assujettie à la section II, "
+                   "ni lui octroyer une subvention, lorsqu'elle ne possède pas d'attestation d'inscription, n'a "
+                   "pas fourni dans le délai prescrit l'analyse de sa situation linguistique, ne possède pas "
+                   "d'attestation d'application de programme ni de certificat, ou si son nom figure sur la liste "
+                   "prévue à l'article 152. Elle ne peut non plus contracter avec une entreprise assujettie à la "
+                   "section III qui a refusé l'offre faite en vertu de l'article 149 (à moins qu'elle n'ait par "
+                   "la suite convenu de mettre en place les services) ou qui fait défaut de respecter les "
+                   "modalités convenues avec Francisation Québec."),
+     "external_citation": "Charte de la langue française, RLRQ c. C-11, art. 152.1", "texte_loi_valide": True},
+    {"id": "P33_10", "article": "art. 33, 10° (P-44.1)",
+     "titre": "Déclaration au registre — nombre de salariés au Québec et proportion ne pouvant communiquer en français",
+     "texte_loi": ("La déclaration d'immatriculation de l'assujetti contient, le cas échéant, le nombre de "
+                   "salariés de l'assujetti dont le lieu de travail est situé au Québec, selon la tranche "
+                   "correspondante déterminée par le ministre, et, lorsque l'assujetti est une entreprise visée "
+                   "au premier alinéa de l'article 149 de la Charte de la langue française (chapitre C-11), la "
+                   "proportion de ceux-ci qui, le cas échéant, ne sont pas en mesure de communiquer en français."),
+     "external_citation": "Loi sur la publicité légale des entreprises, RLRQ c. P-44.1, art. 33, 10°",
+     "texte_loi_valide": True},
+]
+
+
 # Étapes du cycle de vie d'un dossier (pipeline légal)
 PIPELINE_STAGES = [
     {"key": "inscription", "ordre": 1, "label": "Inscription de l'entreprise",

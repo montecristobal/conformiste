@@ -174,6 +174,7 @@ export default function Welcome() {
   const location = useLocation();
   const { user } = useAuth();
   const taille = location.state?.taille;
+  const nbEmployes = location.state?.nb_employes;
 
   if (user) return <Navigate to="/dashboard" replace />;
   if (!taille) return <Navigate to="/" replace />;
@@ -237,9 +238,9 @@ export default function Welcome() {
               {regimeA ? "Moins de 25 employés" : taille === "25_99" ? "Entre 25 et 99 employés" : "100 employés et plus"}
             </span>
             <span className="opacity-80">
-              — {regimeA ? "obligations universelles de la Charte (sans parcours de francisation)." : "parcours de francisation applicable."}
+              — {regimeA ? "obligations universelles + déclaration REQ (parcours PME, sans francisation)." : "parcours de francisation applicable."}
             </span>
-            <button className="ml-auto underline hover:no-underline" onClick={() => navigate("/")} data-testid="welcome-change-size">Modifier</button>
+            <button className="ml-auto underline hover:no-underline" onClick={() => navigate(regimeA ? "/parcours-pme" : "/")} data-testid="welcome-change-size">Modifier</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
@@ -258,7 +259,7 @@ export default function Welcome() {
 
           <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
             <Button size="lg" data-testid="welcome-continue-button"
-              onClick={() => navigate("/register", { state: { account_type: mode, taille } })}
+              onClick={() => navigate("/register", { state: { account_type: mode, taille, nb_employes: nbEmployes } })}
               className="bg-[#0F2B48] hover:bg-[#0F2B48]/90 w-full sm:w-auto">
               Continuer en version {mode} <ArrowRight size={18} className="ml-2" />
             </Button>
