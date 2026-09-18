@@ -22,6 +22,7 @@ import { DiagnosticPanel } from "@/components/DiagnosticPanel";
 import { RegimeAConformite } from "@/components/RegimeAConformite";
 import { ParcoursAStepper } from "@/components/ParcoursAStepper";
 import { RegimeAReq } from "@/components/RegimeAReq";
+import { PlaintePanel } from "@/components/PlaintePanel";
 import { toast } from "sonner";
 import { ArrowLeft, Send, MessageSquarePlus, Calendar, FileDown } from "lucide-react";
 
@@ -198,7 +199,7 @@ export default function DossierDetail() {
               <TabsTrigger value="amorce" data-testid="tab-amorce">Amorce (mobile)</TabsTrigger>
               <TabsTrigger value="analyse" data-testid="tab-analyse">Analyse & non-conformités</TabsTrigger>
               <TabsTrigger value="journal" data-testid="tab-journal">Journal d'audit</TabsTrigger>
-              <TabsTrigger value="plainte" data-testid="tab-plainte" disabled>Plainte (à venir)</TabsTrigger>
+              <TabsTrigger value="plainte" data-testid="tab-plainte">Traitement d'une plainte</TabsTrigger>
             </>
           ) : (
             <>
@@ -229,6 +230,9 @@ export default function DossierDetail() {
             </TabsContent>
             <TabsContent value="journal">
               <AuditLog dossierId={dossier.id} />
+            </TabsContent>
+            <TabsContent value="plainte">
+              <PlaintePanel dossier={dossier} onUpdated={setDossier} />
             </TabsContent>
           </>
         ) : (

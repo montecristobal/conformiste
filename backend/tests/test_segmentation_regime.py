@@ -246,3 +246,34 @@ class TestRegimeAParcours:
                                json={"nb_employes_non_francophones": 999})
         assert r.status_code == 200
         assert r.json()["req_declaration"]["nb_employes_non_francophones"] == 8
+
+
+# ---------- Traitement d'une plainte (Regime A) ----------
+class TestRegimeAPlainte:
+    def test_open_plainte_creates_9_stages(self, solo_a5_client):
+        did = solo_a5_client.get(f"{API}/dossiers").json()[0]["id"]
+        r = solo_a5_client.post(f"{API}/dossiers/{did}/plainte")
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["plainte_ouverte"] is True
+        assert len(d["plainte"]["stages"]) == 9
+        assert d["plainte"]["stages"][0]["key"] == "communication"
+
+    def test_patch_plainte_stage_sets_echeance(self, solo_a5_client):
+        import datetime
+        did = solo_a5_client.get(f"{API}/dossiers").json()[0]["id"]
+        solo_a5_client.post(f"{API}/dossiers/{did}/plainte")
+        ech = (datetime.date.today() + datetime.timedelta(days=10)).isoformat()
+        r = solo_a5_client.patch(f"{API}/dossiers/{did}/plainte/stage/demande_correction",
+                                 json={"statut": "en_cours", "date_limite": ech, "echange": "Lettre reçue"})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["plainte_jours"] == 10
+        stg = next(s for s in d["plainte"]["stages"] if s["key"] == "demande_correction")
+        assert stg["statut"] == "en_cours"
+        assert len(stg["historique"]) == 1
+
+    def test_plainte_rejected_for_regime_b(self, solo_b_client):
+        did = solo_b_client.get(f"{API}/dossiers").json()[0]["id"]
+        r = solo_b_client.post(f"{API}/dossiers/{did}/plainte")
+        assert r.status_code == 400

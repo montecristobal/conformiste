@@ -212,8 +212,16 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - **Nombre exact d'employés** capturé : `RegisterIn.nb_employes` (SOLO) et champ existant du dialogue PRO. `enrich_dossier` calcule `req_declaration_requise = regime A et nb_employes ≥ 5`. En-tête du dossier : badge « Parcours PME · N employés » + « Déclaration REQ requise/enregistrée ».
 - Vérifié : pytest 98/98 + segmentation 14/14 (dont 5 nouveaux tests parcours PME), captures Régime A (stepper, onglet REQ, cadre légal). Le **traitement d'une plainte reste pour une itération ultérieure** (placeholder).
 
+## Implémenté (2026-06 — itération 22, Traitement d'une plainte — étape 3 du parcours PME)
+- **Module « Traitement d'une plainte »** (`PlaintePanel.jsx`, onglet `tab-plainte`, Régime A uniquement) : suivi d'**une seule plainte par dossier** de la communication initiale jusqu'à la résolution.
+- **9 étapes** (`PLAINTE_STAGES`) : Communication initiale (visite d'inspecteur/lettre) → Analyse par l'Office → Demande de correction → Négociation de l'échéancier → Pré-avis d'ordonnance → Ordonnance → Contestation au TAQ (30 j) → Exécution/référé au Procureur général → Résolution. Chaque étape : statut, date, échéance, note, **journal d'échanges**, **pièces jointes** (upload via `?category=plainte:<étape>`).
+- **Alerte inspecteur** proéminente : exiger la carte d'identité ; tout refus = entrave = amende automatique ; un inspecteur n'est pas un conseiller.
+- **Endpoints** : `POST /dossiers/{id}/plainte` (ouvre, refuse le Régime B → 400), `PATCH /dossiers/{id}/plainte` (référence OQLF, type communication, résolution, clôture), `PATCH /dossiers/{id}/plainte/stage/{key}`. `enrich_dossier` calcule `plainte_ouverte` / `plainte_echeance` / `plainte_jours` / `plainte_urgence`.
+- **Échéances de plainte** intégrées aux **rappels** (`generate_reminders` : notifications + courriels `plainte_j7/j30/retard`) et au **résumé hebdomadaire** PRO. Stepper étape 3 activé, reflète l'état de la plainte.
+- Régime B (25+) exclu volontairement : la plainte y passe par une mesure de francisation via le conseiller (hors périmètre).
+- Vérifié : pytest 98/98 + segmentation 17/17 (3 nouveaux tests plainte), curl (ouverture 9 étapes, échéance J-5 → urgence critical, refus Régime B 400), capture du module plainte.
+
 ## Prochaines tâches (backlog)
-- **Traitement d'une plainte (Régime A)** : parcours guidé pour régler une non-conformité issue d'une plainte à l'Office.
 - **Stripe Payments (P0)** : abonnements PRO/SOLO (clé env disponible dans le pod).
 - **Module 2 (P1)** : autres formulaires/modules.
 - **Storage S3/R2 (P1)** : migration depuis le repli Emergent quand identifiants fournis.

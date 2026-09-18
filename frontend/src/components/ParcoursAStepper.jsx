@@ -11,7 +11,13 @@ export const ParcoursAStepper = ({ dossier, active, onSelect }) => {
       done: reqRequise && reqFaite,
       muted: !reqRequise,
     },
-    { key: "plainte", num: 3, label: "Traitement d'une plainte", sub: "À venir", disabled: true },
+    { key: "plainte", num: 3, label: "Traitement d'une plainte",
+      sub: dossier.plainte_ouverte
+        ? (dossier.plainte_jours != null
+            ? (dossier.plainte_jours < 0 ? `Échéance en retard (${Math.abs(dossier.plainte_jours)} j)` : `Échéance dans ${dossier.plainte_jours} j`)
+            : "En cours")
+        : "Aucune plainte ouverte",
+      done: !!(dossier.plainte && dossier.plainte.resolution && !dossier.plainte_ouverte) },
   ];
 
   return (

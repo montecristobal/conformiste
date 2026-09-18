@@ -172,6 +172,58 @@ def new_dossier_stages() -> List[dict]:
              "note": "", "historique": []} for s in PIPELINE_STAGES]
 
 
+PLAINTE_STAGES = [
+    {"key": "communication", "ordre": 1, "label": "Communication initiale de l'OQLF",
+     "description": "Visite d'un inspecteur ou lettre de l'Office. Un inspecteur doit, sur demande, attester sa qualité et présenter sa carte d'identité — exigez-la. Tout refus de collaborer est une entrave, passible automatiquement d'une amende. Un inspecteur n'est pas un conseiller en francisation."},
+    {"key": "analyse", "ordre": 2, "label": "Analyse de la plainte par l'Office",
+     "description": "L'Office analyse le dossier pour déterminer si la plainte est fondée."},
+    {"key": "demande_correction", "ordre": 3, "label": "Demande de correction",
+     "description": "Si la plainte est fondée, l'OQLF informe l'entreprise par lettre et demande des corrections selon un échéancier proposé."},
+    {"key": "negociation", "ordre": 4, "label": "Négociation de l'échéancier",
+     "description": "L'entreprise peut modifier l'échéancier en invoquant ses raisons et négocier un correctif acceptable ainsi qu'une date d'échéance."},
+    {"key": "preavis", "ordre": 5, "label": "Pré-avis d'ordonnance",
+     "description": "Si l'entreprise ne donne pas suite, l'Office émet un pré-avis d'ordonnance de se conformer à la loi."},
+    {"key": "ordonnance", "ordre": 6, "label": "Ordonnance",
+     "description": "15 jours après le pré-avis, l'ordonnance est émise si rien n'a été corrigé."},
+    {"key": "contestation", "ordre": 7, "label": "Contestation au Tribunal administratif du Québec",
+     "description": "L'entreprise a 30 jours pour contester l'ordonnance devant le TAQ, qui peut seulement la confirmer ou l'infirmer. Si elle est infirmée, la plainte peut être fermée ou reformulée."},
+    {"key": "execution", "ordre": 8, "label": "Exécution ou référé au Procureur général",
+     "description": "Si l'ordonnance est confirmée, l'entreprise doit s'exécuter dans les délais impartis ; à défaut, le dossier est référé au Procureur général, qui peut intenter une poursuite (amende par jugement)."},
+    {"key": "resolution", "ordre": 9, "label": "Résolution",
+     "description": "Clôture du dossier : résolu à l'amiable, classé, ordonnance infirmée, ou amende."},
+]
+
+VALID_PLAINTE_STATUTS = {"a_faire", "en_cours", "fait", "sans_objet"}
+
+
+def new_plainte() -> dict:
+    now = datetime.now(timezone.utc).isoformat()
+    return {"id": str(uuid.uuid4()), "ouverte": True, "reference_oqlf": "",
+            "type_communication": None, "resolution": None,
+            "stages": [{"key": s["key"], "ordre": s["ordre"], "label": s["label"],
+                        "description": s["description"], "statut": "a_faire",
+                        "date": None, "date_limite": None, "note": "", "historique": []}
+                       for s in PLAINTE_STAGES],
+            "created_at": now, "updated_at": now}
+
+
+def _plainte_next_echeance(pl: Optional[dict]):
+    if not pl or not pl.get("ouverte"):
+        return None, None
+    today = datetime.now(timezone.utc).date()
+    best = None
+    for s in pl.get("stages", []):
+        if s.get("statut") in ("fait", "sans_objet") or not s.get("date_limite"):
+            continue
+        try:
+            j = (datetime.fromisoformat(s["date_limite"]).date() - today).days
+        except Exception:
+            continue
+        if best is None or j < best[1]:
+            best = (s["date_limite"], j)
+    return (best[0], best[1]) if best else (None, None)
+
+
 def urgence_for(days: Optional[int]) -> str:
     if days is None:
         return "normal"
@@ -213,6 +265,12 @@ def enrich_dossier(d: dict) -> dict:
     d["annexe_ii_requise"] = (d.get("nb_etablissements") or 1) > 1
     d["req_declaration_requise"] = d.get("regime") == "A" and (d.get("nb_employes_quebec") or 0) >= 5
     d.setdefault("req_declaration", None)
+    pl = d.get("plainte")
+    d["plainte_ouverte"] = bool(pl and pl.get("ouverte"))
+    pe, pj = _plainte_next_echeance(pl)
+    d["plainte_echeance"] = pe
+    d["plainte_jours"] = pj
+    d["plainte_urgence"] = urgence_for(pj)
     return d
 
 
@@ -689,6 +747,94 @@ class ReqDeclarationIn(BaseModel):
     nb_employes_non_francophones: int = 0
 
 
+class PlainteMetaIn(BaseModel):
+    reference_oqlf: Optional[str] = None
+    type_communication: Optional[str] = None  # inspection | lettre
+    resolution: Optional[str] = None  # amiable | classee | infirmee | amende
+    ouverte: Optional[bool] = None
+
+
+class PlainteStageIn(BaseModel):
+    statut: Optional[str] = None
+    date: Optional[str] = None
+    date_limite: Optional[str] = None
+    note: Optional[str] = None
+    echange: Optional[str] = None
+
+
+@api.post("/dossiers/{dossier_id}/plainte")
+async def open_plainte(dossier_id: str, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    if (d.get("regime") or "B") != "A":
+        raise HTTPException(status_code=400,
+                            detail="Le traitement d'une plainte est réservé au régime des obligations universelles (< 25 employés).")
+    pl = d.get("plainte")
+    if not pl:
+        pl = new_plainte()
+        await db.dossiers.update_one({"id": dossier_id},
+                                     {"$set": {"plainte": pl, "updated_at": pl["updated_at"]}})
+        await audit(dossier_id, user, "Ouverture d'un dossier de plainte")
+    elif not pl.get("ouverte"):
+        await db.dossiers.update_one({"id": dossier_id}, {"$set": {"plainte.ouverte": True}})
+        await audit(dossier_id, user, "Réouverture du dossier de plainte")
+    return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
+@api.patch("/dossiers/{dossier_id}/plainte")
+async def update_plainte_meta(dossier_id: str, body: PlainteMetaIn,
+                              user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    pl = d.get("plainte")
+    if not pl:
+        raise HTTPException(status_code=404, detail="Aucun dossier de plainte.")
+    upd = {}
+    for f in ("reference_oqlf", "type_communication", "resolution", "ouverte"):
+        v = getattr(body, f)
+        if v is not None:
+            upd[f"plainte.{f}"] = v
+    ts = datetime.now(timezone.utc).isoformat()
+    upd["plainte.updated_at"] = ts
+    upd["updated_at"] = ts
+    await db.dossiers.update_one({"id": dossier_id}, {"$set": upd})
+    await audit(dossier_id, user, "Mise à jour du dossier de plainte")
+    return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
+@api.patch("/dossiers/{dossier_id}/plainte/stage/{stage_key}")
+async def update_plainte_stage(dossier_id: str, stage_key: str, body: PlainteStageIn,
+                               user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    pl = d.get("plainte")
+    if not pl:
+        raise HTTPException(status_code=404, detail="Aucun dossier de plainte.")
+    if body.statut is not None and body.statut not in VALID_PLAINTE_STATUTS:
+        raise HTTPException(status_code=400, detail="Statut invalide")
+    found = None
+    for s in pl.get("stages", []):
+        if s["key"] == stage_key:
+            found = s
+            if body.statut is not None:
+                s["statut"] = body.statut
+            if body.date is not None:
+                s["date"] = body.date
+            if body.date_limite is not None:
+                s["date_limite"] = body.date_limite
+            if body.note is not None:
+                s["note"] = body.note
+            if body.echange:
+                s.setdefault("historique", []).append({
+                    "date": datetime.now(timezone.utc).isoformat(),
+                    "texte": body.echange, "auteur": user["email"]})
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Étape de plainte introuvable")
+    pl["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.dossiers.update_one({"id": dossier_id},
+                                 {"$set": {"plainte": pl, "updated_at": pl["updated_at"]}})
+    await audit(dossier_id, user, f"Plainte — étape « {found['label']} »", body.statut or "")
+    return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
 @api.put("/dossiers/{dossier_id}/req-declaration")
 async def save_req_declaration(dossier_id: str, body: ReqDeclarationIn,
                                user: dict = Depends(get_current_user)):
@@ -774,6 +920,7 @@ MAX_UPLOAD_BYTES = 15 * 1024 * 1024
 
 @api.post("/dossiers/{dossier_id}/documents")
 async def upload_document(dossier_id: str, file: UploadFile = File(...),
+                          category: Optional[str] = Query(None),
                           user: dict = Depends(get_current_user)):
     await get_owned_dossier(dossier_id, user)
     ext = (file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "")
@@ -791,6 +938,7 @@ async def upload_document(dossier_id: str, file: UploadFile = File(...),
         "original_filename": file.filename, "storage_path": result["path"],
         "content_type": content_type, "size": result.get("size", len(data)),
         "url": None, "analysis": None, "is_deleted": False,
+        "category": category,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.documents.insert_one(dict(doc))
@@ -1272,6 +1420,32 @@ async def generate_reminders():
         de = enrich_dossier(dict(d))
         jours = de.get("jours_restants_module1")
         ech = de.get("echeance_module1")
+        # Rappels liés à une plainte ouverte (échéances des étapes)
+        if de.get("plainte_ouverte") and de.get("plainte_jours") is not None:
+            pj = de["plainte_jours"]; pe = de.get("plainte_echeance")
+            if pj < 0:
+                ptyp, pmsg = "plainte_retard", f"Plainte en retard : une échéance de « {d.get('nom_entreprise','')} » était due le {pe}."
+            elif pj <= 7:
+                ptyp, pmsg = "plainte_j7", f"Plainte : échéance imminente pour « {d.get('nom_entreprise','')} » dans {pj} jour(s) ({pe})."
+            elif pj <= 30:
+                ptyp, pmsg = "plainte_j30", f"Plainte : échéance à venir pour « {d.get('nom_entreprise','')} » dans {pj} jours ({pe})."
+            else:
+                ptyp = None
+            if ptyp and not await db.notifications.find_one({"dossier_id": d["id"], "type": ptyp}):
+                try:
+                    await db.notifications.insert_one({
+                        "id": str(uuid.uuid4()), "owner_id": d["owner_id"], "dossier_id": d["id"],
+                        "dossier_nom": d.get("nom_entreprise", ""), "type": ptyp, "jours": pj,
+                        "echeance": pe, "message": pmsg, "read": False,
+                        "created_at": datetime.now(timezone.utc).isoformat()})
+                    created += 1
+                    owner = await db.users.find_one({"_id": ObjectId(d["owner_id"])})
+                    if owner and owner.get("email"):
+                        await mailer.send_reminder_email(owner["email"], d.get("nom_entreprise", ""), pmsg, d["id"])
+                except DuplicateKeyError:
+                    pass
+                except Exception as ee:
+                    logger.warning(f"Rappel de plainte échoué (dossier {d['id']}): {ee}")
         if jours is None:
             continue
         if 0 <= jours <= 7:
@@ -1347,10 +1521,13 @@ async def generate_weekly_summary():
         for d in dossiers:
             de = enrich_dossier(dict(d))
             jours = de.get("jours_restants_module1")
-            if jours is None or jours > 30:
-                continue
-            items.append({"nom": d.get("nom_entreprise", ""),
-                          "echeance": de.get("echeance_module1"), "jours": jours})
+            if jours is not None and jours <= 30:
+                items.append({"nom": d.get("nom_entreprise", ""),
+                              "echeance": de.get("echeance_module1"), "jours": jours})
+            pj = de.get("plainte_jours")
+            if de.get("plainte_ouverte") and pj is not None and pj <= 30:
+                items.append({"nom": (d.get("nom_entreprise", "") or "") + " — plainte",
+                              "echeance": de.get("plainte_echeance"), "jours": pj})
         if not items:
             continue
         items.sort(key=lambda x: x["jours"])
