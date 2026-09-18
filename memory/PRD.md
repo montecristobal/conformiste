@@ -226,6 +226,13 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - **Export PDF du dossier de plainte** (`pdf_export.build_plainte_pdf`, `GET /dossiers/{id}/export/plainte`, bouton `plainte-export-pdf`) : dossier horodaté = métadonnées + chronologie des 9 étapes (statut, dates, notes), **journal d'échanges** et **pièces jointes** listées par étape — preuve de suivi.
 - Vérifié : curl (lettre générée, PDF 200 %PDF-, type invalide → 400), AST backend OK.
 
+## Implémenté (2026-06 — itération 24, Refonte parcours PME : hub A/B + inscription directe)
+- **Plus de page SOLO/PRO pour les < 25** : SizeGate « Moins de 25 » → `/parcours-pme` (saisie du nombre exact) → **inscription directe** (`Register` sans sélecteur SOLO/PRO, compte SOLO implicite). La page SOLO/PRO reste réservée aux 25+.
+- **Hub A/B** (`RegimeAHub.jsx`) = accueil du dossier Régime A : deux cartes **Parcours A — Mise en conformité** et **Parcours B — Traitement d'une plainte**, toujours accessibles ; « Retour au choix » après chaque parcours. Outils secondaires : Amorce mobile, Analyse documentaire, Journal d'audit.
+- **Parcours A** (`ParcoursAElements.jsx`) = **une étape par élément** : U1 à U18 (18) + **Déclaration REQ** en 19e (uniquement si ≥ 5 employés → sinon 18). Chaque élément : statut (conforme/à valider/non conforme/sans objet/non évalué), note, **preuve jointe**, texte de loi, et constats auto-détectés par l'analyse. Progression `X/total` affichée. `PATCH /dossiers/{id}/parcours-a/element/{code}` ; `enrich_dossier` calcule `parcours_a_total` / `parcours_a_traites`.
+- **Parcours B** = module de plainte existant (9 étapes, lettres, PDF) rebranché dans le hub. La « Déclaration REQ » n'est plus un parcours séparé mais une étape du Parcours A.
+- Vérifié : flux UI complet (/ → PME → register sans SOLO/PRO → hub A/B → Parcours A), curl (total=19, patch élément incrémente, Régime B → 400), pytest segmentation.
+
 ## Prochaines tâches (backlog)
 - **Stripe Payments (P0)** : abonnements PRO/SOLO (clé env disponible dans le pod).
 - **Module 2 (P1)** : autres formulaires/modules.

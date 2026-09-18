@@ -19,10 +19,7 @@ import { AuditLog } from "@/components/AuditLog";
 import { OqlfInscriptionForm } from "@/components/OqlfInscriptionForm";
 import { AmorcePanel } from "@/components/AmorcePanel";
 import { DiagnosticPanel } from "@/components/DiagnosticPanel";
-import { RegimeAConformite } from "@/components/RegimeAConformite";
-import { ParcoursAStepper } from "@/components/ParcoursAStepper";
-import { RegimeAReq } from "@/components/RegimeAReq";
-import { PlaintePanel } from "@/components/PlaintePanel";
+import { RegimeAHub } from "@/components/RegimeAHub";
 import { toast } from "sonner";
 import { ArrowLeft, Send, MessageSquarePlus, Calendar, FileDown } from "lucide-react";
 
@@ -137,7 +134,7 @@ export default function DossierDetail() {
   if (!dossier) return <Layout><div className="py-20 text-center text-slate-400">Chargement…</div></Layout>;
 
   const isRegimeA = dossier.regime === "A";
-  const defaultTab = isRegimeA ? "conformite" : "diagnostic";
+  const defaultTab = "diagnostic";
   const visibleStages = (dossier.stages || []).filter((s) => s.key !== "comite" || dossier.comite_requis);
 
   return (
@@ -181,28 +178,15 @@ export default function DossierDetail() {
       </div>
 
       {isRegimeA ? (
-        <Card className="p-4 mb-6">
-          <ParcoursAStepper dossier={dossier} active={tab || defaultTab} onSelect={(k) => setTab(k)} />
-        </Card>
+        <RegimeAHub dossier={dossier} onUpdated={setDossier} reload={reload} />
       ) : (
-        <Card className="p-4 mb-6">
-          <PipelineStepper stages={visibleStages} activeKey={activeStage} onSelect={(k) => { if (confirmLeave()) { setActiveStage(k); setTab("apercu"); } }} />
-        </Card>
-      )}
+        <>
+          <Card className="p-4 mb-6">
+            <PipelineStepper stages={visibleStages} activeKey={activeStage} onSelect={(k) => { if (confirmLeave()) { setActiveStage(k); setTab("apercu"); } }} />
+          </Card>
 
-      <Tabs value={tab || defaultTab} onValueChange={(v) => { if (confirmLeave()) setTab(v); }}>
-        <TabsList className="mb-4">
-          {isRegimeA ? (
-            <>
-              <TabsTrigger value="conformite" data-testid="tab-conformite">Obligations universelles</TabsTrigger>
-              <TabsTrigger value="req" data-testid="tab-req">Déclaration REQ</TabsTrigger>
-              <TabsTrigger value="amorce" data-testid="tab-amorce">Amorce (mobile)</TabsTrigger>
-              <TabsTrigger value="analyse" data-testid="tab-analyse">Analyse & non-conformités</TabsTrigger>
-              <TabsTrigger value="journal" data-testid="tab-journal">Journal d'audit</TabsTrigger>
-              <TabsTrigger value="plainte" data-testid="tab-plainte">Traitement d'une plainte</TabsTrigger>
-            </>
-          ) : (
-            <>
+          <Tabs value={tab || defaultTab} onValueChange={(v) => { if (confirmLeave()) setTab(v); }}>
+            <TabsList className="mb-4">
               <TabsTrigger value="diagnostic" data-testid="tab-diagnostic">Aperçu du diagnostic</TabsTrigger>
               <TabsTrigger value="apercu" data-testid="tab-apercu">Étape & aperçu</TabsTrigger>
               <TabsTrigger value="amorce" data-testid="tab-amorce">Amorce (mobile)</TabsTrigger>
@@ -210,33 +194,8 @@ export default function DossierDetail() {
               <TabsTrigger value="module2" data-testid="tab-module2">Module 2 — Programme</TabsTrigger>
               <TabsTrigger value="analyse" data-testid="tab-analyse">Analyse & non-conformités</TabsTrigger>
               <TabsTrigger value="journal" data-testid="tab-journal">Journal d'audit</TabsTrigger>
-            </>
-          )}
-        </TabsList>
+            </TabsList>
 
-        {isRegimeA ? (
-          <>
-            <TabsContent value="conformite">
-              <RegimeAConformite dossier={dossier} onGoAnalyse={() => setTab("analyse")} />
-            </TabsContent>
-            <TabsContent value="req">
-              <RegimeAReq dossier={dossier} onSaved={setDossier} />
-            </TabsContent>
-            <TabsContent value="amorce">
-              <AmorcePanel dossier={dossier} />
-            </TabsContent>
-            <TabsContent value="analyse">
-              <AnalyseTab dossier={dossier} onMesureAdded={reload} />
-            </TabsContent>
-            <TabsContent value="journal">
-              <AuditLog dossierId={dossier.id} />
-            </TabsContent>
-            <TabsContent value="plainte">
-              <PlaintePanel dossier={dossier} onUpdated={setDossier} />
-            </TabsContent>
-          </>
-        ) : (
-          <>
             <TabsContent value="diagnostic">
               <DiagnosticPanel dossier={dossier} onComplete={() => { if (confirmLeave()) setTab("module1"); }} />
             </TabsContent>
@@ -258,9 +217,9 @@ export default function DossierDetail() {
             <TabsContent value="journal">
               <AuditLog dossierId={dossier.id} />
             </TabsContent>
-          </>
-        )}
-      </Tabs>
+          </Tabs>
+        </>
+      )}
     </Layout>
   );
 }

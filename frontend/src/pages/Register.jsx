@@ -41,7 +41,7 @@ export default function Register() {
           <span className="font-display font-extrabold text-lg text-[#0F2B48]">CONFORMISTE</span>
         </Link>
         <h1 className="font-display text-2xl font-bold text-[#0F2B48]">Créer un compte</h1>
-        <p className="text-sm text-slate-500 mb-5">Choisissez votre version, puis renseignez vos accès.</p>
+        <p className="text-sm text-slate-500 mb-5">{regimeA ? "Renseignez vos accès pour accéder à votre parcours PME." : "Choisissez votre version, puis renseignez vos accès."}</p>
 
         {taille && (
           <div className={`mb-5 rounded-xl border px-3 py-2 text-xs ${regimeA ? "bg-indigo-50 border-indigo-200 text-indigo-800" : "bg-blue-50 border-blue-200 text-blue-800"}`} data-testid="register-regime-note">
@@ -51,16 +51,18 @@ export default function Register() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          {[["SOLO", User], ["PRO", Building2]].map(([m, Icon]) => (
-            <button key={m} type="button" onClick={() => setAccountType(m)} data-testid={`register-mode-${m.toLowerCase()}`}
-              className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-colors ${
-                accountType === m ? "border-[#2563EB] bg-blue-50 text-[#0F2B48]" : "border-slate-200 text-slate-500 hover:border-slate-300"
-              }`}>
-              <Icon size={18} /> Version {m}
-            </button>
-          ))}
-        </div>
+        {!regimeA && (
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            {[["SOLO", User], ["PRO", Building2]].map(([m, Icon]) => (
+              <button key={m} type="button" onClick={() => setAccountType(m)} data-testid={`register-mode-${m.toLowerCase()}`}
+                className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                  accountType === m ? "border-[#2563EB] bg-blue-50 text-[#0F2B48]" : "border-slate-200 text-slate-500 hover:border-slate-300"
+                }`}>
+                <Icon size={18} /> Version {m}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
@@ -77,7 +79,7 @@ export default function Register() {
           </div>
           {error && <p className="text-sm text-red-600" data-testid="register-error">{error}</p>}
           <Button type="submit" disabled={busy} data-testid="register-submit-button" className="w-full bg-[#0F2B48] hover:bg-[#0F2B48]/90">
-            {busy ? "Création…" : `Créer mon compte ${accountType}`}
+            {busy ? "Création…" : (regimeA ? "Créer mon compte" : `Créer mon compte ${accountType}`)}
           </Button>
         </form>
         <p className="text-sm text-slate-500 mt-5 text-center">

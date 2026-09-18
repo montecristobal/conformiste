@@ -101,7 +101,7 @@ export default function RegimeAIntro() {
 
           <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
             <Button size="lg" disabled={nbNum == null} data-testid="intro-continue-button"
-              onClick={() => navigate("/welcome", { state: { taille, nb_employes: nbNum } })}
+              onClick={() => navigate("/register", { state: { account_type: "SOLO", taille, nb_employes: nbNum } })}
               className="bg-[#0F2B48] hover:bg-[#0F2B48]/90 w-full sm:w-auto">
               Continuer <ArrowRight size={18} className="ml-2" />
             </Button>

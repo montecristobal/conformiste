@@ -265,6 +265,13 @@ def enrich_dossier(d: dict) -> dict:
     d["annexe_ii_requise"] = (d.get("nb_etablissements") or 1) > 1
     d["req_declaration_requise"] = d.get("regime") == "A" and (d.get("nb_employes_quebec") or 0) >= 5
     d.setdefault("req_declaration", None)
+    _ua = d.get("parcours_a_elements") or {}
+    _uni_codes = [t["id"] for t in UNIVERSAL_THEMES]
+    _traites = sum(1 for c in _uni_codes if (_ua.get(c) or {}).get("statut") not in (None, "non_evalue"))
+    if d["req_declaration_requise"] and d.get("req_declaration"):
+        _traites += 1
+    d["parcours_a_total"] = len(_uni_codes) + (1 if d["req_declaration_requise"] else 0)
+    d["parcours_a_traites"] = _traites
     pl = d.get("plainte")
     d["plainte_ouverte"] = bool(pl and pl.get("ouverte"))
     pe, pj = _plainte_next_echeance(pl)
@@ -760,6 +767,36 @@ class PlainteStageIn(BaseModel):
     date_limite: Optional[str] = None
     note: Optional[str] = None
     echange: Optional[str] = None
+
+
+VALID_ELEMENT_STATUTS = {"non_evalue", "conforme", "a_valider", "non_conforme", "sans_objet"}
+
+
+class ParcoursAElementIn(BaseModel):
+    statut: Optional[str] = None
+    note: Optional[str] = None
+
+
+@api.patch("/dossiers/{dossier_id}/parcours-a/element/{code}")
+async def update_parcours_a_element(dossier_id: str, code: str, body: ParcoursAElementIn,
+                                    user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    if (d.get("regime") or "B") != "A":
+        raise HTTPException(status_code=400, detail="Réservé au régime des obligations universelles.")
+    if body.statut is not None and body.statut not in VALID_ELEMENT_STATUTS:
+        raise HTTPException(status_code=400, detail="Statut invalide")
+    els = d.get("parcours_a_elements") or {}
+    cur = els.get(code, {})
+    if body.statut is not None:
+        cur["statut"] = body.statut
+    if body.note is not None:
+        cur["note"] = body.note
+    cur["updated_at"] = datetime.now(timezone.utc).isoformat()
+    els[code] = cur
+    await db.dossiers.update_one({"id": dossier_id},
+                                 {"$set": {"parcours_a_elements": els, "updated_at": cur["updated_at"]}})
+    await audit(dossier_id, user, f"Parcours A — élément {code}", body.statut or "")
+    return enrich_dossier(await get_owned_dossier(dossier_id, user))
 
 
 @api.post("/dossiers/{dossier_id}/plainte")
