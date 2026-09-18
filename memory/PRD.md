@@ -221,6 +221,11 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Régime B (25+) exclu volontairement : la plainte y passe par une mesure de francisation via le conseiller (hors périmètre).
 - Vérifié : pytest 98/98 + segmentation 17/17 (3 nouveaux tests plainte), curl (ouverture 9 étapes, échéance J-5 → urgence critical, refus Régime B 400), capture du module plainte.
 
+## Implémenté (2026-06 — itération 23, Modèles de lettre + Export PDF de la plainte)
+- **Modèles de lettre à l'OQLF** (`GET /dossiers/{id}/plainte/lettre?type=`, carte `plainte-letters`) : 3 modèles pré-remplis (accusé de réception, demande de délai, correctif proposé) avec nom/NEQ/référence/date, éditables + copie presse-papier.
+- **Export PDF du dossier de plainte** (`pdf_export.build_plainte_pdf`, `GET /dossiers/{id}/export/plainte`, bouton `plainte-export-pdf`) : dossier horodaté = métadonnées + chronologie des 9 étapes (statut, dates, notes), **journal d'échanges** et **pièces jointes** listées par étape — preuve de suivi.
+- Vérifié : curl (lettre générée, PDF 200 %PDF-, type invalide → 400), AST backend OK.
+
 ## Prochaines tâches (backlog)
 - **Stripe Payments (P0)** : abonnements PRO/SOLO (clé env disponible dans le pod).
 - **Module 2 (P1)** : autres formulaires/modules.

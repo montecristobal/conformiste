@@ -288,6 +288,61 @@ def build_oqlf_pdf(dossier):
     return buf
 
 
+_PLAINTE_STATUT_LABELS = {"a_faire": "À faire", "en_cours": "En cours", "fait": "Fait", "sans_objet": "Sans objet"}
+_PLAINTE_RES_LABELS = {"amiable": "Résolue à l'amiable", "classee": "Classée (non fondée)",
+                       "infirmee": "Ordonnance infirmée", "amende": "Amende / jugement"}
+_PLAINTE_TYPE_LABELS = {"inspection": "Visite d'un inspecteur", "lettre": "Lettre de l'OQLF"}
+
+
+def build_plainte_pdf(dossier, pieces_by_stage=None):
+    """Dossier de plainte horodaté : chronologie, échanges et pièces (preuve de suivi)."""
+    pieces_by_stage = pieces_by_stage or {}
+    pl = dossier.get("plainte") or {}
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, topMargin=1.6 * cm,
+                            bottomMargin=1.6 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
+    ss = _styles()
+    story = []
+    _header(story, ss, "Dossier de plainte — suivi",
+            f"Entreprise : <b>{_esc(dossier.get('nom_entreprise', '—'))}</b> — "
+            f"NEQ : {_esc(dossier.get('neq', '—'))}")
+    story.append(_kv_table([
+        ("Référence OQLF", pl.get("reference_oqlf") or "—"),
+        ("Communication initiale", _PLAINTE_TYPE_LABELS.get(pl.get("type_communication"), "—")),
+        ("Statut du dossier", "Ouvert" if pl.get("ouverte") else "Clos"),
+        ("Résolution", _PLAINTE_RES_LABELS.get(pl.get("resolution"), "En cours")),
+        ("Ouvert le", (pl.get("created_at") or "")[:10] or "—"),
+    ]))
+    story.append(Spacer(1, 6))
+    for s in pl.get("stages", []):
+        story.append(Paragraph(
+            f'{s.get("ordre")}. {_esc(s.get("label", ""))} — '
+            f'<b>{_PLAINTE_STATUT_LABELS.get(s.get("statut"), s.get("statut"))}</b>', ss["H2"]))
+        rows = []
+        if s.get("date"):
+            rows.append(("Date de l'événement", s["date"]))
+        if s.get("date_limite"):
+            rows.append(("Échéance", s["date_limite"]))
+        if s.get("note"):
+            rows.append(("Note", s["note"]))
+        if rows:
+            story.append(_kv_table(rows))
+        for h in s.get("historique", []):
+            story.append(Paragraph(
+                f'Échange — {_esc((h.get("date") or "")[:16])} · {_esc(h.get("auteur", ""))} : '
+                f'{_esc(h.get("texte", ""))}', ss["Legal"]))
+        for fn in pieces_by_stage.get(s.get("key"), []):
+            story.append(Paragraph(f'Pièce jointe : {_esc(fn)}', ss["Label"]))
+        story.append(Spacer(1, 4))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(
+        "Document produit par CONFORMISTE à titre de preuve de suivi. Ne constitue pas un avis juridique.",
+        ss["Label"]))
+    doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+    buf.seek(0)
+    return buf
+
+
 def build_regime_a_pdf(dossier, themes, findings_by_theme):
     """Rapport de conformité aux obligations universelles (Régime A, < 25 employés)."""
     buf = BytesIO()

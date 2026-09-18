@@ -835,6 +835,74 @@ async def update_plainte_stage(dossier_id: str, stage_key: str, body: PlainteSta
     return enrich_dossier(await get_owned_dossier(dossier_id, user))
 
 
+def _plainte_letter(d: dict, t: str) -> dict:
+    nom = d.get("nom_entreprise", "")
+    neq = d.get("neq") or "—"
+    ref = (d.get("plainte") or {}).get("reference_oqlf") or "[référence OQLF]"
+    today = datetime.now(timezone.utc).date().isoformat()
+    sign = "[Votre nom et fonction]"
+    if t == "accuse_reception":
+        subject = f"Accusé de réception — plainte {ref} — {nom}"
+        body = (f"Objet : Accusé de réception de votre communication (réf. {ref})\nDate : {today}\n\n"
+                f"Madame, Monsieur,\n\n"
+                f"Nous accusons réception de votre communication concernant l'entreprise {nom} (NEQ {neq}). "
+                f"Nous prenons acte de la plainte et confirmons notre pleine collaboration.\n\n"
+                f"Nous procédons à l'examen des éléments soulevés et reviendrons vers vous dans les meilleurs délais.\n\n"
+                f"Veuillez agréer nos salutations distinguées.\n\n{sign}\n{nom}")
+    elif t == "demande_delai":
+        subject = f"Demande de délai — plainte {ref} — {nom}"
+        body = (f"Objet : Demande de modification de l'échéancier (réf. {ref})\nDate : {today}\n\n"
+                f"Madame, Monsieur,\n\n"
+                f"Concernant la plainte visant l'entreprise {nom} (NEQ {neq}), nous nous engageons à apporter les "
+                f"correctifs demandés. Compte tenu de [préciser les motifs : délais fournisseurs, refonte de "
+                f"l'affichage, traduction de documents, etc.], nous sollicitons respectueusement un délai jusqu'au "
+                f"[date proposée].\n\n"
+                f"Nous demeurons disponibles pour convenir avec vous d'un échéancier acceptable.\n\n"
+                f"Veuillez agréer nos salutations distinguées.\n\n{sign}\n{nom}")
+    else:  # correctif_propose
+        subject = f"Correctifs proposés — plainte {ref} — {nom}"
+        body = (f"Objet : Mesures correctives proposées (réf. {ref})\nDate : {today}\n\n"
+                f"Madame, Monsieur,\n\n"
+                f"À la suite de la plainte visant l'entreprise {nom} (NEQ {neq}), nous proposons les mesures "
+                f"correctives suivantes :\n"
+                f"1. [Décrire le correctif] — échéance : [date]\n"
+                f"2. [Décrire le correctif] — échéance : [date]\n\n"
+                f"Ces mesures visent à assurer la conformité aux articles applicables de la Charte de la langue "
+                f"française. Nous restons à votre disposition pour tout ajustement.\n\n"
+                f"Veuillez agréer nos salutations distinguées.\n\n{sign}\n{nom}")
+    return {"type": t, "subject": subject, "body": body}
+
+
+@api.get("/dossiers/{dossier_id}/plainte/lettre")
+async def plainte_letter(dossier_id: str, type: str = Query("accuse_reception"),
+                         user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    if type not in ("accuse_reception", "demande_delai", "correctif_propose"):
+        raise HTTPException(status_code=400, detail="Type de lettre invalide")
+    return _plainte_letter(d, type)
+
+
+@api.get("/dossiers/{dossier_id}/export/plainte")
+async def export_plainte(dossier_id: str, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    if not d.get("plainte"):
+        raise HTTPException(status_code=404, detail="Aucun dossier de plainte.")
+    await audit(dossier_id, user, "Export PDF — Dossier de plainte")
+    docs = await db.documents.find({"dossier_id": dossier_id, "is_deleted": False},
+                                   {"_id": 0}).to_list(1000)
+    pieces_by_stage: Dict[str, list] = {}
+    for doc in docs:
+        cat = doc.get("category") or ""
+        if cat.startswith("plainte:"):
+            pieces_by_stage.setdefault(cat.split(":", 1)[1], []).append(
+                doc.get("original_filename", "Pièce"))
+    from pdf_export import build_plainte_pdf
+    buf = build_plainte_pdf(d, pieces_by_stage)
+    fn = f"dossier_plainte_{d.get('neq') or dossier_id}.pdf"
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
 @api.put("/dossiers/{dossier_id}/req-declaration")
 async def save_req_declaration(dossier_id: str, body: ReqDeclarationIn,
                                user: dict = Depends(get_current_user)):

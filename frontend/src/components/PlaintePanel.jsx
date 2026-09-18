@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "@/lib/api";
+import api, { downloadPdf } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import {
   ShieldAlert, MessageSquareWarning, Save, Paperclip, Trash2, MessageSquarePlus,
-  Download, FolderOpen, CheckCircle2, ExternalLink,
+  Download, FolderOpen, CheckCircle2, ExternalLink, FileDown, Copy, Mail,
 } from "lucide-react";
 
 const STATUTS = [
@@ -165,6 +165,62 @@ function StageCard({ dossierId, stage, onUpdated }) {
   );
 }
 
+const LETTER_TYPES = [
+  { value: "accuse_reception", label: "Accusé de réception" },
+  { value: "demande_delai", label: "Demande de délai" },
+  { value: "correctif_propose", label: "Correctif proposé" },
+];
+
+function LettersCard({ dossierId }) {
+  const [type, setType] = useState("accuse_reception");
+  const [draft, setDraft] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const generate = async (t) => {
+    setBusy(true);
+    try {
+      const { data } = await api.get(`/dossiers/${dossierId}/plainte/lettre?type=${t}`);
+      setDraft(data);
+    } catch (e) { toast.error("Erreur"); }
+    finally { setBusy(false); }
+  };
+
+  const copyDraft = () => {
+    if (!draft) return;
+    navigator.clipboard?.writeText(`${draft.subject}\n\n${draft.body}`);
+    toast.success("Lettre copiée");
+  };
+
+  return (
+    <Card className="p-5 space-y-3" data-testid="plainte-letters">
+      <div className="flex items-center gap-2">
+        <Mail size={18} className="text-indigo-600" />
+        <h3 className="font-display font-bold text-[#0F2B48]">Modèles de lettre à l'OQLF</h3>
+      </div>
+      <p className="text-sm text-slate-500">Générez une réponse pré-remplie, adaptez-la, puis copiez-la.</p>
+      <div className="flex flex-wrap gap-2">
+        {LETTER_TYPES.map((l) => (
+          <Button key={l.value} size="sm" variant={type === l.value ? "default" : "outline"}
+            className={type === l.value ? "bg-[#0F2B48] hover:bg-[#0F2B48]/90" : ""}
+            onClick={() => { setType(l.value); generate(l.value); }}
+            disabled={busy} data-testid={`plainte-letter-${l.value}`}>
+            {l.label}
+          </Button>
+        ))}
+      </div>
+      {draft && (
+        <div className="space-y-2">
+          <Input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} data-testid="plainte-letter-subject" />
+          <Textarea rows={10} value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} data-testid="plainte-letter-body" className="font-mono text-[13px]" />
+          <Button size="sm" variant="outline" onClick={copyDraft} data-testid="plainte-letter-copy">
+            <Copy size={14} className="mr-2" /> Copier
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export const PlaintePanel = ({ dossier, onUpdated }) => {
   const [busy, setBusy] = useState(false);
   const pl = dossier.plainte;
@@ -211,6 +267,12 @@ export const PlaintePanel = ({ dossier, onUpdated }) => {
       <InspectorAlert />
 
       <Card className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-display font-bold text-[#0F2B48]">Dossier de plainte</h3>
+          <Button variant="outline" size="sm" onClick={() => downloadPdf(`/dossiers/${dossier.id}/export/plainte`, `dossier_plainte_${dossier.neq || dossier.id}.pdf`)} data-testid="plainte-export-pdf">
+            <FileDown size={14} className="mr-2" /> Dossier PDF
+          </Button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
           <div className="space-y-1.5">
             <Label className="text-xs">Référence OQLF</Label>
@@ -251,6 +313,8 @@ export const PlaintePanel = ({ dossier, onUpdated }) => {
           <StageCard key={s.key} dossierId={dossier.id} stage={s} onUpdated={onUpdated} />
         ))}
       </div>
+
+      <LettersCard dossierId={dossier.id} />
     </div>
   );
 };
