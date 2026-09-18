@@ -245,6 +245,36 @@ for _t in THEMES_LEGAUX:
         _t["reference_date"] = "2025-06-01"
         _t["retrieved_at"] = "2026-06-01"
 
+# Thèmes B1 à B9 — article 141 (moyens du programme de francisation).
+_ART141_CHAPEAU = ("141. Les programmes de francisation ont pour but la généralisation de "
+                   "l'utilisation du français à tous les niveaux de l'entreprise, par :")
+_B_PARAS = {
+    "B1": "1° une bonne connaissance de la langue officielle chez les hauts dirigeants, les autres dirigeants, les membres des ordres professionnels et les autres membres du personnel;",
+    "B2": "2° l'augmentation, s'il y a lieu, à tous les niveaux de l'entreprise, y compris au sein du conseil d'administration, du nombre de personnes ayant une bonne connaissance de la langue française de manière à en assurer l'utilisation généralisée;",
+    "B3": "3° l'utilisation du français comme langue du travail et des communications internes;",
+    "B4": "4° l'utilisation du français dans les documents et les outils de travail utilisés dans l'entreprise;",
+    "B5": "5° l'utilisation du français dans les communications avec l'Administration, la clientèle, les fournisseurs, le public et les actionnaires sauf, dans ce dernier cas, s'il s'agit d'une société fermée au sens de la Loi sur les valeurs mobilières (chapitre V-1.1);",
+    "B6": "6° l'utilisation d'une terminologie française;",
+    "B7": "7° l'utilisation du français dans l'affichage public et la publicité commerciale;",
+    "B8": "8° une politique d'embauche, de promotion et de mutation appropriée;",
+    "B9": "9° l'utilisation du français dans les technologies de l'information.",
+}
+_ART141_NOTE = ("L'article 141 énonce que le BUT d'un programme de francisation est la généralisation "
+                "de l'utilisation du français ; il énumère ensuite les MOYENS que l'employeur doit "
+                "prendre pour l'atteindre. Il s'agit d'un objectif à pondérer, qui peut ne pas être "
+                "entièrement atteint — les constats s'interprètent comme une obligation de moyens, "
+                "non de résultat absolu.")
+for _t in THEMES_LEGAUX:
+    _para = _B_PARAS.get(_t["id"])
+    if _para:
+        _t["texte_loi_valide"] = True
+        _t["texte_loi"] = _ART141_CHAPEAU + "\n" + _para
+        _t["note_portee"] = _ART141_NOTE
+        _t["external_source_type"] = "charte_langue_francaise"
+        _t["external_citation"] = "Charte de la langue française, RLRQ c. C-11, art. 141"
+        _t["reference_date"] = "2022-06-01"
+        _t["retrieved_at"] = "2026-06-01"
+
 
 
 # Étapes du cycle de vie d'un dossier (pipeline légal)

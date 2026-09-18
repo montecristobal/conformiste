@@ -77,17 +77,30 @@ def _logiciels_status(m1):
     return "non_evalue"
 
 
-def compute_conformite(m1):
-    elements = [
-        {"key": "affichage_public", "label": "Affichage public", "important": True,
-         "statut": _lang_status(m1.get("s8.e_publicite"))},
-        {"key": "site_web_medias", "label": "Site web et médias sociaux", "important": True,
-         "statut": _combine(_lang_status(m1.get("s8.e_site_web")), _lang_status(m1.get("s8.medias_sociaux")))},
-        {"key": "logiciels", "label": "Langue des logiciels", "important": True,
-         "statut": _logiciels_status(m1)},
-        {"key": "etiquetage", "label": "Étiquetage et inscriptions sur les emballages", "important": False,
-         "statut": _lang_status(m1.get("s8.e_inscriptions"))},
+def compute_conformite(m1, signals=None):
+    signals = signals or {}
+    base = {
+        "affichage_public": _lang_status(m1.get("s8.e_publicite")),
+        "site_web_medias": _combine(_lang_status(m1.get("s8.e_site_web")), _lang_status(m1.get("s8.medias_sociaux"))),
+        "logiciels": _logiciels_status(m1),
+        "etiquetage": _lang_status(m1.get("s8.e_inscriptions")),
+    }
+    meta = [
+        ("affichage_public", "Affichage public", True),
+        ("site_web_medias", "Site web et médias sociaux", True),
+        ("logiciels", "Langue des logiciels", True),
+        ("etiquetage", "Étiquetage et inscriptions sur les emballages", False),
     ]
+    elements = []
+    for key, label, important in meta:
+        sig = signals.get(key)
+        if sig:
+            statut, source = sig["statut"], sig["source"]
+        else:
+            statut = base[key]
+            source = "Module 1" if statut != "non_evalue" else "—"
+        elements.append({"key": key, "label": label, "important": important,
+                         "statut": statut, "source": source})
     non_conformes = sum(1 for e in elements if e["statut"] == "non_francais")
     evalues = sum(1 for e in elements if e["statut"] != "non_evalue")
     if evalues == 0:
@@ -104,6 +117,56 @@ def compute_conformite(m1):
         "elements": elements,
         "note": "Vert : tous les éléments en français · Jaune : au moins un élément non conforme · Rouge : 3 éléments ou plus non conformes.",
     }
+
+
+def _lang_from_analysis(ana):
+    if not ana:
+        return None
+    ld = ana.get("langue_detectee")
+    if ld == "francais":
+        return "francais"
+    if ld in ("autre", "mixte"):
+        return "non_francais"
+    return None
+
+
+def _combine_statuses(statuses):
+    s = [x for x in statuses if x]
+    if not s:
+        return None
+    if "non_francais" in s:
+        return "non_francais"
+    if "francais" in s:
+        return "francais"
+    return None
+
+
+def derive_conformite_signals(docs):
+    """Dérive les statuts de conformité depuis les documents : preuves de langue (site/médias)
+    et photos de l'amorce analysées (façade/enseigne/affichage → affichage public ; poste de
+    travail → logiciels). Ces signaux terrain priment sur le Module 1."""
+    aff, logi, site = [], [], []
+    for d in docs or []:
+        src, cat, ana = d.get("source"), d.get("category"), d.get("analysis")
+        if src == "preuve-langue" and d.get("is_french") is not None:
+            site.append("francais" if d.get("is_french") else "non_francais")
+        elif src == "amorce-photo":
+            st = _lang_from_analysis(ana)
+            if cat in ("facade", "enseigne", "affichage_interieur"):
+                aff.append(st)
+            elif cat == "poste_travail":
+                logi.append(st)
+    out = {}
+    a = _combine_statuses(aff)
+    if a:
+        out["affichage_public"] = {"statut": a, "source": "photos de l'amorce"}
+    l = _combine_statuses(logi)
+    if l:
+        out["logiciels"] = {"statut": l, "source": "photo du poste de travail"}
+    s = _combine_statuses(site)
+    if s:
+        out["site_web_medias"] = {"statut": s, "source": "détection de langue"}
+    return out
 
 
 # ----------------------------------------------------------------- EP (art. 144)
@@ -211,9 +274,9 @@ def compute_risque(m1, employes, jours_restants, conformite, ep):
     return {"niveau": niveau, "score": score, "facteurs": facteurs}
 
 
-def compute_diagnostic(m1, employes, jours_restants):
+def compute_diagnostic(m1, employes, jours_restants, signals=None):
     ep = compute_ep(m1)
-    conformite = compute_conformite(m1)
+    conformite = compute_conformite(m1, signals)
     francisabilite = compute_francisabilite(m1, ep)
     risque = compute_risque(m1, employes, jours_restants, conformite, ep)
     return {

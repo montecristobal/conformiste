@@ -293,7 +293,7 @@ class TestDeleteAndPlan:
         ana = a.json()["analysis"]
         assert ana["langue_detectee"] in ("francais", "autre", "mixte")
         assert isinstance(ana["elements"], list)
-        validated = {"A1", "A2", "A3", "A4", "A5"}
+        validated = {"A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9"}
         for el in ana["elements"]:
             assert el["statut"] in ("a_valider", "non_conforme"), f"statut interdit: {el}"
             if el.get("theme_id") not in validated:

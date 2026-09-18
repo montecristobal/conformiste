@@ -132,7 +132,12 @@ export const DiagnosticPanel = ({ dossier, onComplete }) => {
                 const st = STAT[e.statut] || STAT.non_evalue;
                 return (
                   <li key={e.key} className="flex items-center justify-between gap-3 text-sm bg-white/60 rounded-lg px-3 py-1.5" data-testid={`diag-conf-el-${e.key}`}>
-                    <span className="text-slate-700">{e.label}{e.important && <span className="ml-1 text-[10px] text-slate-400">(clé)</span>}</span>
+                    <span className="text-slate-700">
+                      {e.label}{e.important && <span className="ml-1 text-[10px] text-slate-400">(clé)</span>}
+                      {e.source && e.source !== "—" && (
+                        <span className="block text-[10px] text-slate-400">Source : {e.source}</span>
+                      )}
+                    </span>
                     <span className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold ${st.text} ${st.bg}`}>{st.label}</span>
                   </li>
                 );

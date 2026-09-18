@@ -91,7 +91,7 @@ def make_pdf_with_english_text() -> bytes:
     return buf.getvalue()
 
 
-VALIDATED_THEMES = {"A1", "A2", "A3", "A4", "A5"}  # textes de loi confirmés → verdict possible
+VALIDATED_THEMES = {"A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9"}  # textes de loi confirmés → verdict possible
 
 
 def assert_prudence(elements):

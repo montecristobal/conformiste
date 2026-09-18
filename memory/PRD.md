@@ -175,3 +175,16 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 ## Ordre convenu pour la suite (demande utilisateur)
 1. ✅ Report vocal → Module 1 (itération 14).
 2. ✅ Phase 2 — indices + diagnostic EP (itération 16).
+
+## Implémenté (2026-06 — itération 17, Conformité enrichie)
+- Les 4 éléments de conformité sont désormais alimentés **automatiquement** par les signaux terrain, qui **priment sur le Module 1** :
+  - **Affichage public** : photos de l'amorce (façade/enseigne/affichage intérieur) **auto-analysées en tâche de fond** (`BackgroundTasks` → `_analyze_and_store`) via la vision LLM.
+  - **Langue des logiciels** : photo « poste de travail » de l'amorce (auto-analysée).
+  - **Site web et médias sociaux** : détection de langue persistée sur les documents `preuve-langue` (`lang`/`is_french`/`ev_kind`).
+  - **Étiquetage** : repli Module 1 (`s8.e_inscriptions`).
+- `diagnostic.derive_conformite_signals(docs)` mappe documents → statuts ; `compute_conformite(m1, signals)` affiche la **source** de chaque verdict. Vérifié bout-en-bout (photo façade anglaise → affichage « non conforme (photos de l'amorce) », bande jaune).
+
+## Implémenté (2026-06 — itération 18, validation des thèmes B1–B9 / art. 141)
+- Textes de loi de **l'article 141** (chapeau + paragraphes 1° à 9°, fournis par le client) insérés dans B1…B9 avec `texte_loi_valide=True` → le moteur peut désormais rendre « non conforme » sur A1–A5 **et** B1–B9 (tous les thèmes du catalogue sont validés).
+- **`note_portee` commune** (art. 141) : le but est la généralisation du français ; l'article énumère les MOYENS ; objectif à pondérer, obligation de moyens et non de résultat absolu.
+- Champs de référence renseignés (external_citation art. 141, reference_date 2022-06-01). Tests pytest mis à jour (prudence pour tous thèmes validés, `test_themes_have_external_fields` rendu dynamique, `test_cron_idempotent` déterministe par stabilisation) — **98/98 verts**.

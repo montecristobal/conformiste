@@ -545,6 +545,7 @@ async def language_proof(dossier_id: str, body: LangProofIn,
                 "original_filename": f"Preuve linguistique — {url}", "storage_path": res["path"],
                 "content_type": "image/png", "size": res.get("size", len(png)), "url": url,
                 "source": "preuve-langue", "analysis": None, "is_deleted": False,
+                "ev_kind": kind, "lang": lang.get("lang"), "is_french": lang.get("is_french"),
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
             await db.documents.insert_one(dict(doc))
@@ -767,6 +768,41 @@ async def delete_document(doc_id: str, user: dict = Depends(get_current_user)):
     await db.documents.update_one({"id": doc_id}, {"$set": {"is_deleted": True}})
     await audit(doc["dossier_id"], user, "Suppression d'un document", doc.get("original_filename", ""))
     return {"ok": True}
+
+
+async def _analyze_and_store(doc_id: str):
+    """Analyse LLM d'un document et stockage du résultat (utilisé en tâche de fond)."""
+    doc = await db.documents.find_one({"id": doc_id})
+    if not doc or doc.get("is_deleted"):
+        return
+    try:
+        if doc.get("type") == "url":
+            text = await run_in_threadpool(analysis.fetch_url_text, doc["url"])
+            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc.get("original_filename", ""))
+        elif doc.get("kind") == "image":
+            data, ct = await run_in_threadpool(get_object, doc["storage_path"])
+            b64 = base64.b64encode(data).decode("utf-8")
+            result = await analysis.run_llm_analysis("image", (b64, ct), THEMES_LEGAUX, doc.get("original_filename", ""))
+        elif doc.get("kind") == "pdf":
+            data, ct = await run_in_threadpool(get_object, doc["storage_path"])
+            text = await run_in_threadpool(analysis.extract_pdf_text, data)
+            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc.get("original_filename", ""))
+        else:
+            data, ct = await run_in_threadpool(get_object, doc["storage_path"])
+            text = data.decode("utf-8", errors="ignore")
+            result = await analysis.run_llm_analysis("text", text, THEMES_LEGAUX, doc.get("original_filename", ""))
+    except Exception as e:
+        logger.warning(f"analyse auto échouée pour {doc_id}: {e}")
+        return
+    now_date = datetime.now(timezone.utc).date()
+    for el in result.get("elements", []):
+        el["id"] = str(uuid.uuid4())
+        el["converti"] = False
+        el["statut"] = _finding_status(el.get("theme_id"), el)
+        jours = el.get("echeance_suggeree_jours")
+        el["echeance_suggeree_date"] = (now_date + timedelta(days=jours)).isoformat() if isinstance(jours, int) else None
+    result["analyzed_at"] = datetime.now(timezone.utc).isoformat()
+    await db.documents.update_one({"id": doc_id}, {"$set": {"analysis": result}})
 
 
 @api.post("/documents/{doc_id}/analyze")
@@ -1045,7 +1081,9 @@ async def get_dossier_diagnostic(dossier_id: str, user: dict = Depends(get_curre
     else:
         employes = int(employes)
     jours = d.get("jours_restants_module1")
-    return diagnostic.compute_diagnostic(m1, employes, jours)
+    docs = await db.documents.find({"dossier_id": dossier_id, "is_deleted": {"$ne": True}}).to_list(500)
+    signals = diagnostic.derive_conformite_signals(docs)
+    return diagnostic.compute_diagnostic(m1, employes, jours, signals)
 
 
 # ---- routes publiques (téléphone, jeton dans l'URL, sans login)
@@ -1062,8 +1100,8 @@ async def amorce_public_info(session_id: str):
 
 
 @api.post("/amorce/{session_id}/photo")
-async def amorce_upload_photo(session_id: str, category: str = Query(...),
-                              file: UploadFile = File(...)):
+async def amorce_upload_photo(session_id: str, background: BackgroundTasks,
+                              category: str = Query(...), file: UploadFile = File(...)):
     s = await _get_active_amorce(session_id)
     label = next((c["label"] for c in amorce.AMORCE_PHOTO_CATEGORIES if c["key"] == category), category)
     data = await file.read()
@@ -1084,6 +1122,8 @@ async def amorce_upload_photo(session_id: str, category: str = Query(...),
     entry = {"category": category, "label": label, "document_id": doc["id"],
              "created_at": doc["created_at"]}
     await db.amorce_sessions.update_one({"id": session_id}, {"$push": {"photos": entry}})
+    if category in ("facade", "enseigne", "affichage_interieur", "poste_travail", "offre_emploi"):
+        background.add_task(_analyze_and_store, doc["id"])
     return {"ok": True, "document_id": doc["id"], "category": category, "label": label}
 
 
