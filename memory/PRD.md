@@ -163,6 +163,15 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Nouvelles variables : `OPENAI_API_KEY`, `OPENAI_MODEL`, `RESEND_API_KEY`, `EMAIL_FROM`, `S3_BUCKET`/`S3_REGION`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_ENDPOINT_URL`. Documentées dans `backend/.env.example`.
 - Tests pytest : **98/98 verts** avec la clé OpenAI directe (crédits ajoutés) et le domaine Resend `dvsc.ca` vérifié (`EMAIL_FROM=conformiste@dvsc.ca`, envoi réel vers destinataire non-titulaire confirmé). `test_themes_have_external_fields` (A1–A5 validés / B1–B9 prudents), `test_req_lookup` (NEQ non numérique → 422), et les assertions de prudence (A1–A5 peuvent être « non conforme », B* restent « à valider ») mis à jour ; `test_cron_idempotent` rendu auto-suffisant. Stockage S3/R2 prêt (attend des identifiants), repli Emergent conservé pour l'instant comme convenu.
 
+## Implémenté (2026-06 — itération 16, Phase 2 : Aperçu du diagnostic)
+- Nouvel onglet **« Aperçu du diagnostic »** (1re position, actif par défaut) du dossier — `GET /api/v1/dossiers/{id}/diagnostic` (`diagnostic.py`), calcul déterministe à partir du Module 1 avec **repli sur l'amorce** (fusion des réponses de toutes les sessions, la plus récente prime).
+- **Diagnostic EP (Entente particulière, art. 144)** — 3 états neutres (badge indigo, pas de couleur « problème ») : *Non admissible* / *Potentiellement admissible* / *À déterminer*. Règle : > 50 % de revenus hors Québec (déterminant) **combiné** à des activités/personnel hors Québec (établissements ou siège hors QC). Pas de zone grise ; conditions affichées avec coche/absence/tiret.
+- **Francisabilité** (pas de jauge) : % revenus **hors Québec** positionné de façon **neutre** vs repère 50 %, + liste de facteurs contextuels (art. 142) non fusionnés (CA, clientèle, fournisseurs, achats hors QC, établissements hors QC), + badge EP.
+- **Conformité** (bandes vert/ambre/rouge + **état neutre « Non évalué »** si couverture 0, pour ne pas induire une fausse conformité) : basée sur la langue de l'affichage public, du site web/médias sociaux, des logiciels et de l'étiquetage. Vert = tout en français · Jaune = ≥ 1 non conforme · Rouge = ≥ 3. Couverture « X évalués sur 4 » affichée.
+- **Risque** (Faible/Modéré/Élevé) : score combinant conformité + assujettissement (employés ≥ 25 / ≥ 100) + proximité/dépassement de l'échéance légale.
+- Bandeau **« Estimation indicative — à valider par un professionnel »** partout. Bouton **« Compléter le dossier »** → onglet Module 1.
+- Vérifié : backend curl (EP non admissible/potentiellement admissible, bandes vert/jaune/rouge/non_evalue) + testing agent **100 % backend & frontend** (onglet par défaut, cohérence UI↔API, navigation bouton).
+
 ## Ordre convenu pour la suite (demande utilisateur)
-1. ✅ Report vocal (réponses Amorce transcrites) → préremplissage Module 1 via patron accepter/refuser — **FAIT** (itération 14).
-2. Phase 2 — indices (Francisabilité, Conformité, Risque) + diagnostic EP 3 états (art. 144, en attente des seuils/facteurs art. 142).
+1. ✅ Report vocal → Module 1 (itération 14).
+2. ✅ Phase 2 — indices + diagnostic EP (itération 16).

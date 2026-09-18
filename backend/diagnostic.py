@@ -90,7 +90,9 @@ def compute_conformite(m1):
     ]
     non_conformes = sum(1 for e in elements if e["statut"] == "non_francais")
     evalues = sum(1 for e in elements if e["statut"] != "non_evalue")
-    if non_conformes == 0:
+    if evalues == 0:
+        band = "non_evalue"
+    elif non_conformes == 0:
         band = "vert"
     elif non_conformes >= 3:
         band = "rouge"

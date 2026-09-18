@@ -11,6 +11,7 @@ const BAND = {
   vert: { bg: "bg-emerald-50", ring: "ring-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500", label: "Vert" },
   jaune: { bg: "bg-amber-50", ring: "ring-amber-200", text: "text-amber-700", dot: "bg-amber-500", label: "Jaune" },
   rouge: { bg: "bg-red-50", ring: "ring-red-200", text: "text-red-700", dot: "bg-red-500", label: "Rouge" },
+  non_evalue: { bg: "bg-slate-50", ring: "ring-slate-200", text: "text-slate-600", dot: "bg-slate-400", label: "Non évalué" },
 };
 const RISK = {
   faible: { text: "text-emerald-700", bg: "bg-emerald-100", label: "Faible" },
@@ -50,9 +51,10 @@ export const DiagnosticPanel = ({ dossier, onComplete }) => {
   if (!diag) return <div className="text-slate-500 p-8">Diagnostic indisponible.</div>;
 
   const { ep, francisabilite, conformite, risque } = diag;
-  const band = BAND[conformite.band] || BAND.jaune;
+  const band = BAND[conformite.band] || BAND.non_evalue;
   const risk = RISK[risque.niveau] || RISK.modere;
   const rev = francisabilite.revenus_hors_quebec;
+  const conformes = conformite.evalues - conformite.non_conformes;
 
   return (
     <div className="space-y-5" data-testid="diagnostic-panel">
@@ -121,8 +123,9 @@ export const DiagnosticPanel = ({ dossier, onComplete }) => {
               </span>
             </div>
             <p className="text-[13px] text-slate-600" data-testid="diag-conf-coverage">
-              {conformite.total - conformite.non_conformes - (conformite.total - conformite.evalues)} élément(s) conforme(s) ·
-              {" "}{conformite.non_conformes} non conforme(s) · {conformite.evalues} évalué(s) sur {conformite.total} pertinents
+              {conformite.evalues === 0
+                ? "Aucun élément évalué pour l'instant — complétez le dossier pour obtenir un verdict."
+                : `${conformes} élément(s) conforme(s) · ${conformite.non_conformes} non conforme(s) · ${conformite.evalues} évalué(s) sur ${conformite.total} pertinents`}
             </p>
             <ul className="space-y-1.5">
               {conformite.elements.map((e) => {

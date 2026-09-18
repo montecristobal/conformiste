@@ -1,0 +1,26 @@
+{
+  "summary": "Testing du diagnostic (Phase 2). Backend endpoint GET /api/v1/dossiers/{id}/diagnostic renvoie les valeurs attendues pour le dossier 2a62630c-ef53-4938-80d9-9879858ae5fc: EP='Non admissible à une EP', revenus_hors_quebec=30, employes_quebec=120, risque='modere', conformite band='vert' (aucun élément évalué). UI Playwright : l'onglet 'Aperçu du diagnostic' (data-testid=tab-diagnostic) est ACTIF par défaut (data-state=active) à l'ouverture du dossier, le panneau (diagnostic-panel) s'affiche sans clic, bandeau prudence visible ('Estimation indicative — à valider par un professionnel.'), diag-rev-hors='30 %', curseur visible, 5 facteurs présents (diag-facteur-0..4 dont clientèle/fournisseurs/achats à 'non renseigné' et établissements 'Non'), diag-ep-label='Non admissible à une EP' avec conteneur diag-ep en couleurs NEUTRES (border-indigo-200 bg-indigo-50/60), 4 éléments de conformité (diag-conf-el-affichage_public/site_web_medias/logiciels/etiquetage) tous 'Non évalué', badge diag-conf-band='Vert', coverage='0 élément(s) conforme(s) · 0 non conforme(s) · 0 évalué(s) sur 4 pertinents', diag-risque-niveau='Modéré'. Clic sur 'Compléter le dossier' (diag-complete-btn) bascule bien vers l'onglet Module 1 (tab-module1 data-state=active, tab-diagnostic passe à inactive). UI ↔ API 100% cohérent.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Diagnostic — Conformité", "issues": ["Sémantique discutable : quand aucun des 4 éléments n'est évalué (0 évalués sur 4), le badge affiche 'Vert' (car non_conformes=0) alors que le libellé de spec dit 'vert = tout en français'. Un état 'Non évalué / À déterminer' (couleur neutre) serait plus clair tant que la couverture est 0. À décider avec main agent (règle backend compute_conformite)."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_17.json"],
+  "action_items": [
+    "(Optionnel) Revoir la règle de bande de conformité quand evalues=0 : afficher un état neutre plutôt que 'Vert' pour éviter d'induire l'utilisateur en erreur."
+  ],
+  "critical_code_review_comments": [
+    "DiagnosticPanel.jsx: la ligne de coverage utilise l'expression `total - non_conformes - (total - evalues)` pour compter les conformes. Fonctionne mais peu lisible ; extraire en variable `conformes` améliorerait la maintenance.",
+    "Aucun état de gestion d'erreur explicite dans DiagnosticPanel (setDiag(null) puis affichage 'Diagnostic indisponible.') — acceptable, mais aucun toast ni retry."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "vild@yuville.com / Conformiste2026! (PRO)",
+  "seed_data_creation": "aucune",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Route dossier est /dossier/:id (singulier). Backend calc dans /app/backend/diagnostic.py. Composant UI /app/frontend/src/components/DiagnosticPanel.jsx. Tous les data-testid demandés existent et fonctionnent."
+}
