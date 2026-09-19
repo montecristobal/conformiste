@@ -270,6 +270,16 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 ## À DÉCIDER (avec l'utilisateur)
 - **Vue principale du Portefeuille PRO** : l'utilisateur doit indiquer sa préférence (Gantt chronologique vs Kanban par étape) pour en faire la vue par défaut / l'affiner.
 
+## Refonte Parcours A — PHASE 1 (2026-06, itération 29)
+- **Démarrage par le NEQ** : nouvel onglet « Profil / démarrage » (`ParcoursAProfil.jsx`) en tête du Parcours A. Recherche NEQ → pré-remplit nom légal + marques de commerce (source **simulée** `req_lookup.simulate_req` ; à remplacer par la vraie source REQ / un CSV fourni par l'utilisateur).
+- **Questionnaire préalable qui filtre les obligations** : syndicat, vend des produits, vend des jouets/jeux, immobilier résidentiel. Gates (catalogue.py) : U3/U7/U8=syndicat, U10/U11/U14=produits, U17=jouets, U18=immo. U4/U5 = **rappels informatifs** (protections « après les faits », sans saisie ni diagnostic).
+- **Effectifs & REQ préparatoire** : nb total d'employés + nb pouvant s'exprimer en français → proportion NE pouvant PAS communiquer en français, **reportée** dans la déclaration REQ (préremplissage), mais **aucun envoi sans consentement** (bouton d'enregistrement explicite conservé).
+- **Backend** : `ParcoursAProfilIn` + `PUT /dossiers/{id}/parcours-a/profil` ; `enrich_dossier` expose `parcours_a_applicable` / `parcours_a_info_only` ; `nb_employes_quebec`, `neq`, `nom_entreprise` mis à jour depuis le profil. Liste et Gantt filtrés sur les obligations applicables.
+- Vérifié : testing agent frontend **100 %** (iteration_22) — NEQ (valide/invalide), % 3/8=37,5 %, filtrage bidirectionnel (syndicat/produits/jouets/immo), rappels U4/U5, REQ préremplie+consentement, Gantt filtré, non-régression édition U1.
+
+## Refonte Parcours A — PHASE 2 (À FAIRE, prochaine étape)
+- Remplacer, pour chaque obligation applicable, le duo « statut Non évalué + note justificative » par une **saisie de données guidée + téléversement de fichiers/photos**, à partir desquels **CONFORMISTE produit un diagnostic** (constat + actions correctives) via l'analyse IA (OpenAI direct).
+
 ## À VENIR (convenu avec l'utilisateur)
 - **Vue d'ensemble PRO multi-dossiers** (Gantt portefeuille vs Kanban) : à rediscuter avec l'utilisateur — lui présenter une maquette Gantt vs Kanban pour suivre l'ensemble des dossiers clients d'un consultant PRO.
 - **Rappels échéances (mesures + Gantt)** : proposés à l'utilisateur (alertes in-app + courriel hebdo) — en attente de « oui ».

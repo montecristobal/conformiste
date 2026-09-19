@@ -1,0 +1,19 @@
+{
+  "summary": "Frontend-only end-to-end verification of Parcours A (Régime A) PHASE 1 refactor: NEQ lookup, profil questionnaire, filtering of universal obligations, REQ preparatoire prefill/consent, Gantt filtering, and non-regression of U1 edit. All 9 review items PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Radix Checkbox exposes data-state='checked'/'unchecked' — tests must read that (not native .checked). Not a bug, but adding aria-checked mirroring on the trigger would ease automation.",
+    "profil-proportion: displayed as '3/8 · 37.5 %' — good. Consider guarding for francais>employes (edge). Verified: normal input works."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "Régime A: ganttpme_1789830672@test.ca / Test2026!",
+  "seed_data_creation": "None — used existing seeded dossier 7a58a8ec-bd3e-4c06-b67c-95872374c068.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Verified via Playwright on https://conformiste-core.preview.emergentagent.com. (1) Login SOLO Régime A -> hub-parcours-a -> parcoursa-view-profil renders parcoursa-profil. (2) Invalid NEQ '123' -> toast 'NEQ invalide : 9 ou 10 chiffres.'. NEQ '1234567890' -> fills profil-nom-input='Cascades Groupe inc.', profil-marques-input='Boréal, Nordik', success toast. (3) Effectifs 8/5 -> profil-proportion='3/8 · 37.5 %'. (4) Save profil (syndicat=OFF, produits=ON, jouets=OFF, immo=OFF) -> success toast, auto-switch to Liste, header shows 'Cascades Groupe inc.' + 'NEQ 1234567890'. (5) SCEN1 Liste counter='0/12 éléments applicables'. Hidden: U3,U7,U8,U17,U18 (count=0). Shown: U10,U11,U14 (count=1). Info-only: U4,U5 cards present, parcoursa-statut-U4/U5 and parcoursa-save-U4/U5 count=0 (correct). REQ card parcoursa-element-REQ present, regimea-req-input prefilled with 3. regimea-req-save persists and shows 'Déclaration REQ enregistrée' toast + '3/8 · 37.5 % — enregistré le 2026-09-19'. (6) Gantt SCEN1: gantt-parcoursa-grid-bar-U4/U5/U3/U7/U8/U17/U18=0; U10/U11/U14/REQ present. (7) Non-regression: U1 statut Radix Select opened with options ['Non évalué','Conforme','À valider','Non conforme','Sans objet'], selected 'Conforme', filled parcoursa-note-U1='TEST note', clicked parcoursa-save-U1 successfully. (8) SCEN2 (syndicat=ON, produits=OFF, jouets=ON, immo=ON) -> Liste counter='1/17 éléments applicables'. Shown: U3,U7,U8,U17,U18 (count=1). Hidden: U10,U11,U14 (count=0). Filtering fully bidirectional. All acceptance criteria PASS.",
+  "rca of the issue": "n/a — no issues found."
+}
