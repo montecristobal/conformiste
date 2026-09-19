@@ -775,6 +775,9 @@ VALID_ELEMENT_STATUTS = {"non_evalue", "conforme", "a_valider", "non_conforme", 
 class ParcoursAElementIn(BaseModel):
     statut: Optional[str] = None
     note: Optional[str] = None
+    date_debut: Optional[str] = None
+    date_echeance: Optional[str] = None
+    incontournable: Optional[bool] = None
 
 
 @api.patch("/dossiers/{dossier_id}/parcours-a/element/{code}")
@@ -791,6 +794,12 @@ async def update_parcours_a_element(dossier_id: str, code: str, body: ParcoursAE
         cur["statut"] = body.statut
     if body.note is not None:
         cur["note"] = body.note
+    if body.date_debut is not None:
+        cur["date_debut"] = body.date_debut or None
+    if body.date_echeance is not None:
+        cur["date_echeance"] = body.date_echeance or None
+    if body.incontournable is not None:
+        cur["incontournable"] = bool(body.incontournable)
     cur["updated_at"] = datetime.now(timezone.utc).isoformat()
     els[code] = cur
     await db.dossiers.update_one({"id": dossier_id},

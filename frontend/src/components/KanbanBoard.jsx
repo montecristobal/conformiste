@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import {
   ShieldAlert, Plus, Paperclip, Trash2, Download, MessageSquarePlus, CheckSquare, Square,
-  AlertTriangle, X,
+  AlertTriangle, X, FileText, Copy, ChevronDown, ChevronRight, ClipboardCheck,
 } from "lucide-react";
 
 const COLUMNS = [
@@ -51,6 +51,79 @@ function CardTile({ m, onClick }) {
       </div>
       {m.validite && <span className="inline-block mt-1 text-[10px]">{m.validite === "fondee" ? "🔴 Fondée" : "🟢 Non fondée"}</span>}
     </button>
+  );
+}
+
+const LETTER_TYPES = [
+  { key: "accuse_reception", label: "Accusé de réception" },
+  { key: "demande_delai", label: "Demande de délai" },
+  { key: "correctif_propose", label: "Correctifs proposés" },
+];
+const PREUVES_GUIDE = [
+  "Photos datées de l'affichage / enseigne corrigés (avant → après), identifiant l'établissement.",
+  "Épreuves d'imprimerie, bons de commande ou factures des nouvelles enseignes/affiches.",
+  "Captures d'écran datées du site Web et des réseaux sociaux en français.",
+  "Exemplaires des documents commerciaux en français (factures, catalogues, contrats, reçus).",
+  "Photos des étiquettes / emballages de produits conformes.",
+  "Attestations de fournisseurs, d'imprimeurs ou de traducteurs (correction en cours ou réalisée).",
+  "Politique linguistique interne ou courriels internes prouvant la mise en œuvre.",
+];
+
+function LettersProofs({ dossierId }) {
+  const [openLetters, setOpenLetters] = useState(false);
+  const [openProofs, setOpenProofs] = useState(false);
+  const [type, setType] = useState("accuse_reception");
+  const [body, setBody] = useState("");
+  const [subject, setSubject] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const load = async (t) => {
+    setType(t); setLoading(true);
+    try {
+      const { data } = await api.get(`/dossiers/${dossierId}/plainte/lettre?type=${t}`);
+      setSubject(data.subject || ""); setBody(data.body || "");
+    } catch (e) { toast.error("Lettre indisponible"); } finally { setLoading(false); }
+  };
+  const copy = () => { navigator.clipboard.writeText(body); toast.success("Lettre copiée"); };
+
+  return (
+    <div className="border-t border-slate-100 pt-3 space-y-3">
+      <button onClick={() => { const n = !openLetters; setOpenLetters(n); if (n && !body) load("accuse_reception"); }}
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#0F2B48]" data-testid="kanban-letters-toggle">
+        {openLetters ? <ChevronDown size={14} /> : <ChevronRight size={14} />} <FileText size={14} /> Modèles de lettre à l'OQLF
+      </button>
+      {openLetters && (
+        <div className="space-y-2" data-testid="kanban-letters">
+          <div className="flex flex-wrap gap-1.5">
+            {LETTER_TYPES.map((l) => (
+              <button key={l.key} onClick={() => load(l.key)} data-testid={`kanban-letter-${l.key}`}
+                className={`text-[11px] px-2.5 py-1 rounded-full border ${type === l.key ? "bg-[#0F2B48] text-white border-[#0F2B48]" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}>
+                {l.label}
+              </button>
+            ))}
+          </div>
+          {loading ? <p className="text-xs text-slate-400">Chargement…</p> : (
+            <>
+              {subject && <p className="text-[11px] font-semibold text-slate-500">{subject}</p>}
+              <Textarea rows={8} value={body} onChange={(e) => setBody(e.target.value)} className="text-xs font-mono" data-testid="kanban-letter-body" />
+              <Button size="sm" variant="outline" onClick={copy} data-testid="kanban-letter-copy"><Copy size={13} className="mr-1" /> Copier</Button>
+            </>
+          )}
+        </div>
+      )}
+      <button onClick={() => setOpenProofs((o) => !o)}
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-[#0F2B48]" data-testid="kanban-proofs-toggle">
+        {openProofs ? <ChevronDown size={14} /> : <ChevronRight size={14} />} <ClipboardCheck size={14} /> Guide des preuves acceptées
+      </button>
+      {openProofs && (
+        <ul className="space-y-1.5 rounded-lg bg-slate-50 border border-slate-100 p-3" data-testid="kanban-proofs">
+          {PREUVES_GUIDE.map((p, i) => (
+            <li key={i} className="flex gap-2 text-xs text-slate-600"><CheckSquare size={13} className="text-emerald-600 mt-0.5 shrink-0" /> {p}</li>
+          ))}
+          <li className="text-[11px] text-slate-400 pt-1 border-t border-slate-100 mt-1">Toute preuve doit être datée et identifier clairement l'établissement concerné.</li>
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -147,6 +220,8 @@ function CardEditor({ dossierId, mesure, onUpdated, onClose }) {
           <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={upload} data-testid="kanban-editor-upload" />
         </label>
       </div>
+
+      <LettersProofs dossierId={dossierId} />
 
       <div className="border-t border-slate-100 pt-3">
         <h4 className="text-xs font-semibold text-slate-600 mb-2">Journal (traçabilité — non modifiable)</h4>
