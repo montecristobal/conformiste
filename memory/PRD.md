@@ -252,6 +252,12 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Vérifié : backend curl (PATCH element dates+incontournable persiste) + testing agent frontend (iteration_19, 95 % → bug copie corrigé et re-vérifié en self-test : toast OK, éditeur non cassé).
 - **Rappels/alertes SLA sur les Mesures : toujours en attente d'approbation utilisateur (non activés).**
 
+## Implémenté (2026-06 — itération 27, Gantt francisation Régime B + GanttGrid partagé)
+- **Composant Gantt partagé** (`GanttGrid.jsx`) : grille temporelle générique (semaines, ligne « aujourd'hui », barres, colonne libellés) + helpers `effectiveDates`/`isoDate`/`startOfToday`. `GanttParcoursA.jsx` refactoré pour l'utiliser (non-régression validée).
+- **Gantt des mesures de francisation (Régime B SOLO/PRO)** (`GanttFrancisation.jsx`) : bascule Programme ↔ Gantt dans l'onglet Module 2 (`module2-view-programme`/`module2-view-gantt`). Une barre par `module2_mesures`, couleur selon statut RMO (à faire=gris, en cours=bleu, complétée=vert, reportée=ambre), **incontournable en rouge**, échéance provisoire **+3 mois par défaut**. Édition début/échéance/incontournable persistée via `PATCH /dossiers/{id}/module2` (champ début=`date_debut`, échéance=`echeance`). État vide guidant vers l'onglet Programme.
+- Vérifié : testing agent frontend **100 %** (iteration_20) — rendu, couleurs, édition + persistance après reload, bascule, + non-régression Gantt Parcours A. Aucun bug.
+- **Rappels/alertes SLA : toujours non activés (en attente d'approbation utilisateur).**
+
 ## À VENIR (convenu avec l'utilisateur)
-- **Gantt Régime B (SOLO/PRO)** : représenter **les Mesures du programme de francisation** (choix utilisateur). À faire ensuite.
-- **Vue d'ensemble PRO multi-dossiers** (Gantt portefeuille vs Kanban) : à rediscuter avec l'utilisateur **après** qu'il ait vu le Gantt d'un dossier.
+- **Vue d'ensemble PRO multi-dossiers** (Gantt portefeuille vs Kanban) : à rediscuter avec l'utilisateur — lui présenter une maquette Gantt vs Kanban pour suivre l'ensemble des dossiers clients d'un consultant PRO.
+- **Rappels échéances (mesures + Gantt)** : proposés à l'utilisateur (alertes in-app + courriel hebdo) — en attente de « oui ».
