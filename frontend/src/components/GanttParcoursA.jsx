@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle, X, Save } from "lucide-react";
 import { GanttGrid, effectiveDates, isoDate, startOfToday } from "@/components/GanttGrid";
+import { ExportGanttButton } from "@/components/ExportGanttButton";
 
 const STATUT_BAR = {
   non_evalue: "bg-slate-300",
@@ -113,9 +114,12 @@ export const GanttParcoursA = ({ dossier, onUpdated }) => {
 
   return (
     <div className="space-y-4" data-testid="gantt-parcoursa">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <span className="text-[11px] font-semibold text-slate-600">Échéancier de mise en conformité — {rows.length} éléments</span>
-        <Legend />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="text-[11px] font-semibold text-slate-600">Échéancier de mise en conformité — {rows.length} éléments</span>
+          <Legend />
+        </div>
+        <ExportGanttButton dossierId={dossier.id} kind="parcours_a" />
       </div>
       <GanttGrid rows={rows} statutColors={STATUT_BAR} onSelect={setSelected} testId="gantt-parcoursa-grid" />
       {selRow && (

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { AlertTriangle, X, Save, Info } from "lucide-react";
 import { GanttGrid, effectiveDates, isoDate, startOfToday } from "@/components/GanttGrid";
+import { ExportGanttButton } from "@/components/ExportGanttButton";
 
 // Couleurs par statut de mise en œuvre (RMO)
 const STATUT_BAR = {
@@ -95,15 +96,16 @@ export const GanttFrancisation = ({ dossier, themes = [], onUpdated }) => {
 
   return (
     <div className="space-y-4" data-testid="gantt-francisation">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-[11px] font-semibold text-slate-600">Échéancier des mesures de francisation — {rows.length} mesure(s)</span>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-          {Object.entries(STATUT_LABEL).map(([k, v]) => (
-            <span key={k} className="flex items-center gap-1"><span className={`inline-block h-3 w-4 rounded ${STATUT_BAR[k]}`} /> {v}</span>
-          ))}
-          <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded ring-2 ring-red-500 bg-red-500" /> incontournable</span>
-          <span className="flex items-center gap-1"><span className="inline-block h-4 w-0.5 bg-red-500" /> aujourd'hui</span>
-        </div>
+        <ExportGanttButton dossierId={dossier.id} kind="francisation" />
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+        {Object.entries(STATUT_LABEL).map(([k, v]) => (
+          <span key={k} className="flex items-center gap-1"><span className={`inline-block h-3 w-4 rounded ${STATUT_BAR[k]}`} /> {v}</span>
+        ))}
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded ring-2 ring-red-500 bg-red-500" /> incontournable</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-4 w-0.5 bg-red-500" /> aujourd'hui</span>
       </div>
       <GanttGrid rows={rows} statutColors={STATUT_BAR} onSelect={setSelected} testId="gantt-fr-grid" />
       {selMesure && (

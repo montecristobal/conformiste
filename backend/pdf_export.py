@@ -473,3 +473,201 @@ def build_module2_pdf(dossier, themes, comite_requis):
     doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
     buf.seek(0)
     return buf
+
+
+
+# ----------------------------------------------------------------- Gantt export
+from datetime import date, timedelta
+
+_GA_COLORS = {"non_evalue": "#CBD5E1", "conforme": "#10B981", "a_valider": "#F59E0B",
+              "non_conforme": "#EF4444", "sans_objet": "#E2E8F0"}
+_GFR_COLORS = {"a_faire": "#94A3B8", "en_cours": "#3B82F6", "completee": "#10B981", "reportee": "#F59E0B"}
+_G_INCONT = "#EF4444"
+_GA_LEGEND = [("Non évalué", "#CBD5E1"), ("Conforme", "#10B981"), ("À valider", "#F59E0B"),
+              ("Non conforme", "#EF4444"), ("Incontournable", "#EF4444")]
+_GFR_LEGEND = [("À faire", "#94A3B8"), ("En cours", "#3B82F6"), ("Complétée", "#10B981"),
+               ("Reportée", "#F59E0B"), ("Incontournable", "#EF4444")]
+
+
+def _g_parse(s):
+    try:
+        return datetime.fromisoformat(s).date() if s else None
+    except Exception:
+        return None
+
+
+def _g_eff(saved, today, sk, ek):
+    from dateutil.relativedelta import relativedelta
+    saved = saved or {}
+    planned = bool(saved.get(sk) or saved.get(ek))
+    debut = _g_parse(saved.get(sk)) or today
+    echeance = _g_parse(saved.get(ek)) or (debut + relativedelta(months=3))
+    if echeance < debut:
+        echeance = debut + relativedelta(months=3)
+    return planned, debut, echeance
+
+
+def build_gantt_pdf(dossier, kind, themes):
+    """Diagramme de Gantt (paysage, une page à hauteur dynamique) pour transmission/archivage."""
+    from reportlab.pdfgen import canvas
+    from dateutil.relativedelta import relativedelta
+
+    today = datetime.now(timezone.utc).date()
+    rows = []
+    if kind == "parcours_a":
+        els = dossier.get("parcours_a_elements") or {}
+        cmap, legend = _GA_COLORS, _GA_LEGEND
+        ordered = sorted(themes, key=lambda x: (not x.get("prioritaire_amorce", True), x.get("ordre", 0)))
+        for t in ordered:
+            saved = els.get(t["id"]) or {}
+            planned, deb, ech = _g_eff(saved, today, "date_debut", "date_echeance")
+            rows.append({"badge": t["id"], "label": t.get("nom_theme", ""),
+                         "statut": saved.get("statut") or "non_evalue",
+                         "inc": bool(saved.get("incontournable")),
+                         "planned": planned, "debut": deb, "echeance": ech})
+        if dossier.get("req_declaration_requise"):
+            saved = els.get("REQ") or {}
+            planned, deb, ech = _g_eff(saved, today, "date_debut", "date_echeance")
+            inc = saved.get("incontournable")
+            rows.append({"badge": "REQ", "label": "Déclaration au registraire des entreprises (REQ)",
+                         "statut": saved.get("statut") or "non_evalue",
+                         "inc": True if inc is None else bool(inc),
+                         "planned": planned, "debut": deb, "echeance": ech})
+        title = "Diagramme de Gantt — Mise en conformité (obligations universelles)"
+    else:
+        mesures = dossier.get("module2_mesures") or []
+        cmap, legend = _GFR_COLORS, _GFR_LEGEND
+        tname = {t["id"]: t["nom_theme"] for t in themes}
+        for i, m in enumerate(mesures):
+            planned, deb, ech = _g_eff(m, today, "date_debut", "echeance")
+            label = (m.get("mesure_engagee") or "").strip() or \
+                f"{tname.get(m.get('theme_id'), m.get('theme_id'))} — mesure {i + 1}"
+            rows.append({"badge": m.get("theme_id"), "label": label,
+                         "statut": m.get("statut_mise_en_oeuvre") or "a_faire",
+                         "inc": bool(m.get("incontournable")),
+                         "planned": planned, "debut": deb, "echeance": ech})
+        title = "Diagramme de Gantt — Mesures du programme de francisation"
+
+    if rows:
+        mn = min([today] + [r["debut"] for r in rows])
+        mx = max([today + relativedelta(months=3)] + [r["echeance"] for r in rows])
+    else:
+        mn, mx = today, today + relativedelta(months=3)
+    start = mn - timedelta(days=mn.weekday())
+    end = mx + timedelta(days=((7 - mx.weekday()) % 7) or 7)
+    weeks = []
+    cur = start
+    while cur < end:
+        weeks.append(cur)
+        cur = cur + timedelta(days=7)
+    total_days = max(1, (end - start).days)
+
+    margin, label_w, col_w, row_h = 28, 214, 24, 20
+    n = max(1, len(rows))
+    page_w = max(660, margin * 2 + label_w + len(weeks) * col_w)
+    page_h = max(280, margin * 2 + 92 + n * row_h)
+    chart_x0 = margin + label_w
+    chart_w = len(weeks) * col_w
+
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=(page_w, page_h))
+
+    # En-tête
+    c.setFillColor(NAVY)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(margin, page_h - margin - 4, title)
+    c.setFont("Helvetica", 9)
+    c.setFillColor(SLATE)
+    c.drawString(margin, page_h - margin - 20,
+                 f"Entreprise : {dossier.get('nom_entreprise', '—')}  ·  NEQ : {dossier.get('neq', '—')}  "
+                 f"·  Généré le {today.isoformat()}  ·  Échelle : semaines")
+    # Légende
+    lx = margin
+    ly = page_h - margin - 38
+    c.setFont("Helvetica", 7.5)
+    for lab, col in legend:
+        c.setFillColor(colors.HexColor(col))
+        c.roundRect(lx, ly - 2, 14, 8, 2, fill=1, stroke=0)
+        c.setFillColor(SLATE)
+        c.drawString(lx + 18, ly, lab)
+        lx += 22 + c.stringWidth(lab, "Helvetica", 7.5) + 12
+
+    grid_top = page_h - (margin + 74)
+    grid_bottom = grid_top - len(rows) * row_h
+
+    # Colonnes semaines
+    c.setLineWidth(0.4)
+    for i, w in enumerate(weeks):
+        x = chart_x0 + i * col_w
+        c.setStrokeColor(colors.HexColor("#E2E8F0"))
+        c.line(x, grid_top, x, grid_bottom)
+        c.setFillColor(colors.HexColor("#94A3B8"))
+        c.setFont("Helvetica", 5.5)
+        c.drawString(x + 1.5, grid_top + 4, w.strftime("%d/%m"))
+    c.setStrokeColor(colors.HexColor("#E2E8F0"))
+    c.line(chart_x0 + chart_w, grid_top, chart_x0 + chart_w, grid_bottom)
+    c.line(chart_x0, grid_top, chart_x0 + chart_w, grid_top)
+
+    # Ligne aujourd'hui
+    tx = chart_x0 + (today - start).days / total_days * chart_w
+    c.setStrokeColor(colors.HexColor(_G_INCONT))
+    c.setLineWidth(1)
+    c.line(tx, grid_top + 8, tx, grid_bottom)
+
+    # Lignes / barres
+    for r_i, r in enumerate(rows):
+        ytop = grid_top - r_i * row_h
+        # séparateur
+        c.setStrokeColor(colors.HexColor("#F1F5F9"))
+        c.setLineWidth(0.4)
+        c.line(margin, ytop - row_h, chart_x0 + chart_w, ytop - row_h)
+        # libellé
+        lab = f"[{r['badge']}] {r['label']}"
+        if len(lab) > 44:
+            lab = lab[:43] + "…"
+        c.setFillColor(NAVY)
+        c.setFont("Helvetica", 8)
+        c.drawString(margin, ytop - row_h + 6, lab)
+        # barre
+        x1 = chart_x0 + (r["debut"] - start).days / total_days * chart_w
+        x2 = chart_x0 + (r["echeance"] - start).days / total_days * chart_w
+        bw = max(3, x2 - x1)
+        fill = _G_INCONT if r["inc"] else cmap.get(r["statut"], "#6366F1")
+        by = ytop - row_h + 4
+        bh = row_h - 8
+        c.setFillColor(colors.HexColor(fill))
+        if not r["planned"]:
+            c.setFillAlpha(0.5)
+            c.setStrokeColor(colors.HexColor("#64748B"))
+            c.setLineWidth(0.8)
+            c.setDash(2, 2)
+            c.roundRect(x1, by, bw, bh, 3, fill=1, stroke=1)
+            c.setDash()
+            c.setFillAlpha(1)
+        else:
+            stroke = colors.HexColor("#B91C1C") if r["inc"] else colors.HexColor(fill)
+            c.setStrokeColor(stroke)
+            c.setLineWidth(1 if r["inc"] else 0)
+            c.roundRect(x1, by, bw, bh, 3, fill=1, stroke=1 if r["inc"] else 0)
+
+    # Pied
+    c.setFillColor(SLATE)
+    c.setFont("Helvetica", 7)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    c.drawString(margin, 12, f"CONFORMISTE — Diagramme généré le {stamp}. Document indicatif, ne constitue pas un avis juridique.")
+
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    return buf
+
+
+def gantt_pdf_to_png(pdf_buf):
+    import pymupdf
+    pdf_buf.seek(0)
+    doc = pymupdf.open(stream=pdf_buf.read(), filetype="pdf")
+    page = doc[0]
+    pix = page.get_pixmap(matrix=pymupdf.Matrix(2, 2))
+    out = BytesIO(pix.tobytes("png"))
+    out.seek(0)
+    return out

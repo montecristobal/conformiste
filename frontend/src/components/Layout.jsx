@@ -2,7 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Notifications } from "@/components/Notifications";
-import { LayoutDashboard, Users, LogOut, FileCheck2, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, FileCheck2, ShieldCheck, GanttChartSquare } from "lucide-react";
 
 export function Layout({ children, activeClientName }) {
   const { user, logout } = useAuth();
@@ -14,6 +14,7 @@ export function Layout({ children, activeClientName }) {
     { to: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, testId: "nav-dashboard" },
   ];
   if (isPro) nav.push({ to: "/clients", label: "Clients", icon: Users, testId: "nav-clients" });
+  if (isPro) nav.push({ to: "/portefeuille", label: "Portefeuille", icon: GanttChartSquare, testId: "nav-portefeuille" });
 
   return (
     <div className="min-h-screen paper-bg flex flex-col">

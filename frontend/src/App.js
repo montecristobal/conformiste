@@ -9,6 +9,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import ClientsPage from "@/pages/ClientsPage";
+import PortefeuillePro from "@/pages/PortefeuillePro";
 import DossierDetail from "@/pages/DossierDetail";
 import MobileAmorce from "@/pages/MobileAmorce";
 
@@ -39,6 +40,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
           <Route path="/clients" element={<Protected><ProOnly><ClientsPage /></ProOnly></Protected>} />
+          <Route path="/portefeuille" element={<Protected><ProOnly><PortefeuillePro /></ProOnly></Protected>} />
           <Route path="/dossier/:id" element={<Protected><DossierDetail /></Protected>} />
           <Route path="/m/:sessionId" element={<MobileAmorce />} />
           <Route path="*" element={<Navigate to="/" replace />} />

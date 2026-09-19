@@ -1088,6 +1088,28 @@ async def export_module2(dossier_id: str, user: dict = Depends(get_current_user)
                              headers={"Content-Disposition": f'attachment; filename="{fn}"'})
 
 
+@api.get("/dossiers/{dossier_id}/gantt/export")
+async def export_gantt(dossier_id: str, kind: str = "parcours_a", format: str = "pdf",
+                       user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    if kind not in ("parcours_a", "francisation"):
+        raise HTTPException(status_code=400, detail="Type de Gantt invalide")
+    if format not in ("pdf", "png"):
+        raise HTTPException(status_code=400, detail="Format invalide")
+    from pdf_export import build_gantt_pdf, gantt_pdf_to_png
+    themes = UNIVERSAL_THEMES if kind == "parcours_a" else THEMES_LEGAUX
+    d = enrich_dossier(d)
+    pdf_buf = build_gantt_pdf(d, kind, themes)
+    await audit(dossier_id, user, f"Export Gantt ({kind}, {format})")
+    base = f"gantt_{kind}_{d.get('neq') or dossier_id}"
+    if format == "png":
+        png = gantt_pdf_to_png(pdf_buf)
+        return StreamingResponse(png, media_type="image/png",
+                                 headers={"Content-Disposition": f'attachment; filename="{base}.png"'})
+    return StreamingResponse(pdf_buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{base}.pdf"'})
+
+
 # ---------------------------------------------------------------- moteur d'analyse
 class UrlIn(BaseModel):
     url: str
