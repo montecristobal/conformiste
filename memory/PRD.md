@@ -301,6 +301,12 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Sauvegarde via `PATCH /dossiers/{id}/parcours-a/element/{code}` avec `donnees` (+ note « Précisions / mesures prévues »). Le backend **auto-marque « à valider »** dès qu'une donnée est saisie (jamais « Conforme » auto). Badges neutres : « À documenter » / « Documenté — à valider ».
 - Vérifié : testing agent frontend **100 %** (iteration_24) — questions guidées U1/U2/U9/U10/U11/U14/U15/U16, faits persistés, statut « Documenté — à valider », preuves, U6 inchangé, U4/U5 rappels, non-régression (Profil/Gantt/Kanban). Note : un ancien badge « Conforme » (données de test antérieures) subsiste sur un dossier de test — non régressif.
 
+## Refonte de la carte d'obligation (2026-06, itération 32) — échantillon en premier
+- À la demande de l'utilisateur, `ElementCard` (Parcours A, obligations non-U6) est **entièrement remaniée** : l'**échantillon / preuve** (fichier que le client dépose) devient l'**élément central et premier** — grande zone de dépôt (photo ou PDF) mise en avant. Déposer un échantillon marque l'obligation « Échantillon reçu — à valider » (jamais un verdict).
+- Le **statut et les précisions** (faits guidés + note) sont **subordonnés** : repliés dans une section secondaire dépliable `Précisions et statut (secondaire, facultatif)`, avec le badge de statut discret dans le résumé. Le « Texte de loi » est un lien discret.
+- Libellés recentrés sur l'échantillon : « En attente d'échantillon » / « Échantillon reçu — à valider ».
+- Vérifié : compilation OK + screenshot (zone de dépôt proéminente, précisions/statut repliés). Backend inchangé (upload → PATCH `donnees._echantillon_depose` → auto « à valider », déjà validé).
+
 ## À VENIR (convenu avec l'utilisateur)
 - **Vue d'ensemble PRO multi-dossiers** (Gantt portefeuille vs Kanban) : à rediscuter avec l'utilisateur — lui présenter une maquette Gantt vs Kanban pour suivre l'ensemble des dossiers clients d'un consultant PRO.
 - **Rappels échéances (mesures + Gantt)** : proposés à l'utilisateur (alertes in-app + courriel hebdo) — en attente de « oui ».

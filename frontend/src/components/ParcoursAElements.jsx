@@ -8,12 +8,12 @@ import { toast } from "sonner";
 import { RegimeAReq } from "@/components/RegimeAReq";
 import { U6Tool } from "@/components/U6Tool";
 import {
-  ChevronDown, ChevronRight, Save, Paperclip, Trash2, Download, Loader2, ScanSearch, Info, Languages,
+  ChevronDown, ChevronRight, Save, Paperclip, Trash2, Download, Loader2, ScanSearch, Info, Languages, UploadCloud,
 } from "lucide-react";
 
 const STATUTS = [
-  { value: "non_evalue", label: "À documenter", cls: "bg-slate-100 text-slate-500" },
-  { value: "a_valider", label: "Documenté — à valider", cls: "bg-amber-100 text-amber-700" },
+  { value: "non_evalue", label: "En attente d'échantillon", cls: "bg-slate-100 text-slate-500" },
+  { value: "a_valider", label: "Échantillon reçu — à valider", cls: "bg-amber-100 text-amber-700" },
   { value: "conforme", label: "Conforme", cls: "bg-emerald-100 text-emerald-700" },
   { value: "non_conforme", label: "Non conforme", cls: "bg-red-100 text-red-700" },
   { value: "sans_objet", label: "Sans objet", cls: "bg-slate-100 text-slate-400" },
@@ -75,8 +75,13 @@ function ElementCard({ dossierId, theme, index, saved, findings, questions, onUp
   const upload = async (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     const fd = new FormData(); fd.append("file", f);
-    try { await api.post(`/dossiers/${dossierId}/documents?category=${encodeURIComponent(cat)}`, fd, { headers: { "Content-Type": "multipart/form-data" } }); toast.success("Preuve ajoutée"); loadPieces(); }
-    catch (err) { toast.error("Téléversement impossible"); }
+    try {
+      await api.post(`/dossiers/${dossierId}/documents?category=${encodeURIComponent(cat)}`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success("Échantillon déposé");
+      loadPieces();
+      // L'échantillon est l'élément central → marque l'obligation « documentée » (jamais un verdict).
+      try { const { data } = await api.patch(`/dossiers/${dossierId}/parcours-a/element/${theme.id}`, { donnees: { ...donnees, _echantillon_depose: true } }); onUpdated?.(data); } catch (e2) {}
+    } catch (err) { toast.error("Téléversement impossible"); }
     e.target.value = "";
   };
   const removePiece = async (id) => { try { await api.delete(`/documents/${id}`); loadPieces(); } catch (e) {} };
@@ -92,7 +97,9 @@ function ElementCard({ dossierId, theme, index, saved, findings, questions, onUp
           </div>
           <h4 className="font-display font-bold text-[#0F2B48] mt-1 leading-snug">{theme.nom_theme}</h4>
         </div>
-        <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.cls}`} data-testid={`parcoursa-status-${theme.id}`}>{st.label}</span>
+        {isU6 && (
+          <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.cls}`} data-testid={`parcoursa-status-${theme.id}`}>{st.label}</span>
+        )}
       </div>
 
       {findings && findings.length > 0 && (
@@ -110,63 +117,73 @@ function ElementCard({ dossierId, theme, index, saved, findings, questions, onUp
         </button>
       ) : (
         <>
-          <div className="space-y-3">
-            {qs.map((q) => (
-              <div key={q.id} className="space-y-1.5" data-testid={`parcoursa-q-${theme.id}-${q.id}`}>
-                <Label className="text-xs text-slate-600">{q.label}</Label>
-                {q.type === "fait" ? (
-                  <div className="flex gap-1.5">
-                    {FAIT_OPTS.map((o) => {
-                      const on = donnees[q.id] === o.v;
-                      return <button key={o.v} type="button" onClick={() => setDonnees((s) => ({ ...s, [q.id]: o.v }))}
-                        data-testid={`parcoursa-q-${theme.id}-${q.id}-${o.v}`}
-                        className={`text-xs px-3 py-1 rounded-full border ${on ? "bg-[#0F2B48] text-white border-[#0F2B48]" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}>{o.label}</button>;
-                    })}
+          {/* PRIMAIRE — l'échantillon est l'élément central */}
+          <div className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/40 p-4" data-testid={`parcoursa-echantillon-${theme.id}`}>
+            <h5 className="font-display font-bold text-[#0F2B48] flex items-center gap-2"><UploadCloud size={17} className="text-indigo-600" /> Échantillon / preuve</h5>
+            <p className="text-xs text-slate-500 mt-0.5 mb-3">C'est l'élément central de cette obligation : déposez ce que le client a réellement produit (photo d'une enseigne, PDF d'une facture, d'un contrat, d'un catalogue…).</p>
+            <label className="flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-indigo-300 bg-white/70 hover:border-indigo-500 hover:bg-white cursor-pointer py-6 transition-all">
+              <UploadCloud size={26} className="text-indigo-500" />
+              <span className="text-sm font-semibold text-[#0F2B48]">Déposer une photo ou un PDF</span>
+              <span className="text-[11px] text-slate-400">PNG, JPG, WEBP ou PDF</span>
+              <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={upload} data-testid={`parcoursa-upload-${theme.id}`} />
+            </label>
+            {pieces.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                <p className="text-[11px] font-semibold text-emerald-700">{pieces.length} échantillon(s) déposé(s)</p>
+                {pieces.map((p) => (
+                  <div key={p.id} className="flex items-center gap-2 text-xs rounded-lg bg-white border border-slate-200 px-3 py-1.5" data-testid={`parcoursa-piece-${p.id}`}>
+                    <Paperclip size={13} className="text-indigo-500 shrink-0" />
+                    <span className="truncate flex-1 text-slate-700">{p.original_filename}</span>
+                    <button onClick={() => window.open(`${api.defaults.baseURL}/documents/${p.id}/download`, "_blank")} className="text-slate-400 hover:text-slate-600"><Download size={13} /></button>
+                    <button onClick={() => removePiece(p.id)} className="text-slate-400 hover:text-red-600"><Trash2 size={13} /></button>
                   </div>
-                ) : (
-                  <Textarea rows={2} value={donnees[q.id] || ""} onChange={(e) => setDonnees((s) => ({ ...s, [q.id]: e.target.value }))} />
-                )}
+                ))}
               </div>
-            ))}
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-600">Précisions / mesures prévues pour être conforme</Label>
-              <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Décrivez la situation et, au besoin, les correctifs prévus (dates, responsables…)." data-testid={`parcoursa-note-${theme.id}`} />
-            </div>
+            )}
           </div>
-          <p className="text-[10px] text-slate-400">Cet outil documente les faits ; il ne rend aucun verdict de conformité automatique.</p>
-        </>
-      )}
 
-      {!isU6 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={save} disabled={busy} className="bg-[#0F2B48] hover:bg-[#0F2B48]/90" data-testid={`parcoursa-save-${theme.id}`}><Save size={14} className="mr-1" /> Enregistrer</Button>
-          <label className="inline-flex items-center gap-1 text-sm text-[#2563EB] cursor-pointer hover:underline">
-            <Paperclip size={14} /> Preuve
-            <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={upload} data-testid={`parcoursa-upload-${theme.id}`} />
-          </label>
-          <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 ml-auto">
-            {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Texte de loi
-          </button>
-        </div>
-      )}
-
-      {pieces.length > 0 && (
-        <div className="space-y-1">
-          {pieces.map((p) => (
-            <div key={p.id} className="flex items-center gap-2 text-xs rounded-lg bg-slate-50 border border-slate-100 px-3 py-1.5" data-testid={`parcoursa-piece-${p.id}`}>
-              <span className="truncate flex-1 text-slate-700">{p.original_filename}</span>
-              <button onClick={() => window.open(`${api.defaults.baseURL}/documents/${p.id}/download`, "_blank")} className="text-slate-400 hover:text-slate-600"><Download size={13} /></button>
-              <button onClick={() => removePiece(p.id)} className="text-slate-400 hover:text-red-600"><Trash2 size={13} /></button>
+          {/* SECONDAIRE — précisions et statut, subordonnés à l'échantillon */}
+          <details className="rounded-lg border border-slate-200 bg-slate-50/60" data-testid={`parcoursa-secondary-${theme.id}`}>
+            <summary className="cursor-pointer list-none px-3 py-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-500 hover:text-slate-700">
+              <span className="flex items-center gap-1.5"><ChevronRight size={13} /> Précisions et statut <span className="text-slate-400">(secondaire, facultatif)</span></span>
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.cls}`} data-testid={`parcoursa-status-${theme.id}`}>{st.label}</span>
+            </summary>
+            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-slate-100">
+              {qs.map((q) => (
+                <div key={q.id} className="space-y-1.5" data-testid={`parcoursa-q-${theme.id}-${q.id}`}>
+                  <Label className="text-xs text-slate-600">{q.label}</Label>
+                  {q.type === "fait" ? (
+                    <div className="flex gap-1.5">
+                      {FAIT_OPTS.map((o) => {
+                        const on = donnees[q.id] === o.v;
+                        return <button key={o.v} type="button" onClick={() => setDonnees((s) => ({ ...s, [q.id]: o.v }))}
+                          data-testid={`parcoursa-q-${theme.id}-${q.id}-${o.v}`}
+                          className={`text-xs px-3 py-1 rounded-full border ${on ? "bg-[#0F2B48] text-white border-[#0F2B48]" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}>{o.label}</button>;
+                      })}
+                    </div>
+                  ) : (
+                    <Textarea rows={2} value={donnees[q.id] || ""} onChange={(e) => setDonnees((s) => ({ ...s, [q.id]: e.target.value }))} />
+                  )}
+                </div>
+              ))}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-600">Précisions / mesures prévues pour être conforme</Label>
+                <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Décrivez la situation et, au besoin, les correctifs prévus." data-testid={`parcoursa-note-${theme.id}`} />
+              </div>
+              <Button size="sm" onClick={save} disabled={busy} className="bg-[#0F2B48] hover:bg-[#0F2B48]/90" data-testid={`parcoursa-save-${theme.id}`}><Save size={14} className="mr-1" /> Enregistrer les précisions</Button>
             </div>
-          ))}
-        </div>
-      )}
+          </details>
 
-      {open && !isU6 && (
-        <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-          <p className="text-[13px] text-slate-600 whitespace-pre-line">{theme.texte_loi || "Texte non disponible."}</p>
-          {theme.external_citation && <p className="text-[11px] text-slate-400 mt-2">{theme.external_citation}</p>}
-        </div>
+          <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600">
+            {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />} Texte de loi
+          </button>
+          {open && (
+            <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
+              <p className="text-[13px] text-slate-600 whitespace-pre-line">{theme.texte_loi || "Texte non disponible."}</p>
+              {theme.external_citation && <p className="text-[11px] text-slate-400 mt-2">{theme.external_citation}</p>}
+            </div>
+          )}
+        </>
       )}
     </Card>
   );
