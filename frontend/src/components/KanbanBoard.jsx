@@ -84,7 +84,20 @@ function LettersProofs({ dossierId }) {
       setSubject(data.subject || ""); setBody(data.body || "");
     } catch (e) { toast.error("Lettre indisponible"); } finally { setLoading(false); }
   };
-  const copy = () => { navigator.clipboard.writeText(body); toast.success("Lettre copiée"); };
+  const copy = async () => {
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(body); }
+      else { throw new Error("no api"); }
+      toast.success("Lettre copiée");
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = body; document.body.appendChild(ta); ta.select();
+        document.execCommand("copy"); document.body.removeChild(ta);
+        toast.success("Lettre copiée");
+      } catch { toast.error("Copie indisponible — sélectionnez le texte manuellement"); }
+    }
+  };
 
   return (
     <div className="border-t border-slate-100 pt-3 space-y-3">

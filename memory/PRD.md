@@ -244,3 +244,14 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - **Module 2 (P1)** : autres formulaires/modules.
 - **Storage S3/R2 (P1)** : migration depuis le repli Emergent quand identifiants fournis.
 - **Préférences courriel (P2)**, **Résumé hebdomadaire portefeuille PRO (P2)**.
+
+## Implémenté (2026-06 — itération 26, Gantt Parcours A + cartes Kanban enrichies)
+- **Vue Gantt du Parcours A** (`GanttParcoursA.jsx`) : bascule Liste/Gantt dans le Hub Régime A (`RegimeAHub.jsx`, `parcoursa-view-liste`/`parcoursa-view-gantt`). Barres temporelles pour les 18 obligations universelles U1–U18 + Déclaration REQ (si ≥ 5 employés). **Échelle par semaines**, ligne verticale « aujourd'hui », barres **incontournables en rouge** (ring), barres **provisoires** (pointillés) à échéance **+3 mois par défaut** si non planifié. Édition des dates + drapeau incontournable par élément.
+- **Backend** : `ParcoursAElementIn` étendu (`date_debut`, `date_echeance`, `incontournable`), persistés dans `parcours_a_elements[code]` via `PATCH /dossiers/{id}/parcours-a/element/{code}`.
+- **Cartes Kanban enrichies** (`KanbanBoard.jsx` → `LettersProofs`) : 3 modèles de lettre OQLF (accusé de réception, demande de délai, correctifs proposés) rebranchés dans chaque carte via `GET /dossiers/{id}/plainte/lettre?type=`, éditables + **copie robuste** (fallback `execCommand` si Clipboard API refusée) ; **guide des preuves acceptées** (8 items, dépliable).
+- Vérifié : backend curl (PATCH element dates+incontournable persiste) + testing agent frontend (iteration_19, 95 % → bug copie corrigé et re-vérifié en self-test : toast OK, éditeur non cassé).
+- **Rappels/alertes SLA sur les Mesures : toujours en attente d'approbation utilisateur (non activés).**
+
+## À VENIR (convenu avec l'utilisateur)
+- **Gantt Régime B (SOLO/PRO)** : représenter **les Mesures du programme de francisation** (choix utilisateur). À faire ensuite.
+- **Vue d'ensemble PRO multi-dossiers** (Gantt portefeuille vs Kanban) : à rediscuter avec l'utilisateur **après** qu'il ait vu le Gantt d'un dossier.
