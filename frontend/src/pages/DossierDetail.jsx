@@ -14,6 +14,7 @@ import { StatusBadge, STATUT_OPTIONS } from "@/components/StatusBadge";
 import { PipelineStepper } from "@/components/PipelineStepper";
 import { Module1Form } from "@/components/Module1Form";
 import { Module2Programme } from "@/components/Module2Programme";
+import { GanttFrancisation } from "@/components/GanttFrancisation";
 import { AnalyseTab } from "@/components/AnalyseTab";
 import { AuditLog } from "@/components/AuditLog";
 import { OqlfInscriptionForm } from "@/components/OqlfInscriptionForm";
@@ -21,7 +22,7 @@ import { AmorcePanel } from "@/components/AmorcePanel";
 import { DiagnosticPanel } from "@/components/DiagnosticPanel";
 import { RegimeAHub } from "@/components/RegimeAHub";
 import { toast } from "sonner";
-import { ArrowLeft, Send, MessageSquarePlus, Calendar, FileDown } from "lucide-react";
+import { ArrowLeft, Send, MessageSquarePlus, Calendar, FileDown, List, GanttChartSquare } from "lucide-react";
 
 
 function StagePanel({ dossier, stageKey, onUpdated, onDirtyChange }) {
@@ -115,6 +116,7 @@ export default function DossierDetail() {
   const [themes, setThemes] = useState([]);
   const [activeStage, setActiveStage] = useState("inscription");
   const [tab, setTab] = useState("");
+  const [m2View, setM2View] = useState("programme");
   const dirtyRef = useRef(false);
 
   const confirmLeave = () => {
@@ -209,7 +211,19 @@ export default function DossierDetail() {
               <Module1Form dossier={dossier} onSaved={setDossier} />
             </TabsContent>
             <TabsContent value="module2">
-              <Module2Programme dossier={dossier} themes={themes} onSaved={setDossier} />
+              <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 mb-4">
+                <button onClick={() => setM2View("programme")} data-testid="module2-view-programme"
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${m2View === "programme" ? "bg-white shadow-sm text-[#0F2B48]" : "text-slate-500 hover:text-slate-700"}`}>
+                  <List size={15} /> Programme
+                </button>
+                <button onClick={() => setM2View("gantt")} data-testid="module2-view-gantt"
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${m2View === "gantt" ? "bg-white shadow-sm text-[#0F2B48]" : "text-slate-500 hover:text-slate-700"}`}>
+                  <GanttChartSquare size={15} /> Diagramme de Gantt
+                </button>
+              </div>
+              {m2View === "programme"
+                ? <Module2Programme dossier={dossier} themes={themes} onSaved={setDossier} />
+                : <GanttFrancisation dossier={dossier} themes={themes} onUpdated={setDossier} />}
             </TabsContent>
             <TabsContent value="analyse">
               <AnalyseTab dossier={dossier} onMesureAdded={reload} />
