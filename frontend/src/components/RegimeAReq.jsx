@@ -28,7 +28,9 @@ function LegalItem({ item }) {
 
 export const RegimeAReq = ({ dossier, onSaved }) => {
   const [framework, setFramework] = useState([]);
-  const [nb, setNb] = useState(dossier.req_declaration?.nb_employes_non_francophones ?? "");
+  const prep = dossier.parcours_a_profil?.req_preparatoire?.non_francophones;
+  const [nb, setNb] = useState(
+    dossier.req_declaration?.nb_employes_non_francophones ?? (prep != null ? String(prep) : ""));
   const [busy, setBusy] = useState(false);
   const total = dossier.nb_employes_quebec || 0;
   const requise = !!dossier.req_declaration_requise;

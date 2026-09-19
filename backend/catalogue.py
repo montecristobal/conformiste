@@ -403,6 +403,16 @@ UNIVERSAL_THEMES = [
 ]
 
 
+_PARCOURS_A_GATES = {
+    "U3": "syndicat", "U7": "syndicat", "U8": "syndicat",
+    "U4": "info_only", "U5": "info_only",
+    "U10": "produits", "U11": "produits", "U14": "produits",
+    "U17": "jouets", "U18": "immo",
+}
+for _t in UNIVERSAL_THEMES:
+    _t["gate"] = _PARCOURS_A_GATES.get(_t["id"])
+
+
 def themes_for_regime(regime):
     """Catalogue de thèmes consulté par le moteur selon le régime du dossier.
     Régime A (< 25 employés) : obligations universelles U1–U18.

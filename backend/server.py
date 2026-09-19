@@ -121,6 +121,18 @@ class DossierIn(BaseModel):
     date_attestation_inscription: Optional[str] = None  # ISO date
 
 
+class ParcoursAProfilIn(BaseModel):
+    neq: Optional[str] = ""
+    nom_legal: Optional[str] = ""
+    marques: Optional[List[str]] = None
+    syndicat: bool = False
+    vend_produits: bool = False
+    vend_jouets: bool = False
+    immo_residentiel: bool = False
+    nb_employes: Optional[int] = None
+    nb_francais: Optional[int] = None
+
+
 class Module1In(BaseModel):
     module1_data: Dict[str, Any] = {}
     module1_meta: Dict[str, Any] = {}
@@ -245,6 +257,34 @@ def regime_from(taille: Optional[str], nb_employes: Optional[int] = None) -> str
     return "B"
 
 
+def _parcours_a_gate_ok(gate: Optional[str], profil: dict) -> bool:
+    if gate == "syndicat":
+        return bool(profil.get("syndicat"))
+    if gate == "produits":
+        return bool(profil.get("vend_produits"))
+    if gate == "jouets":
+        return bool(profil.get("vend_jouets"))
+    if gate == "immo":
+        return bool(profil.get("immo_residentiel"))
+    return True
+
+
+def parcours_a_sets(dossier: dict):
+    """Retourne (applicable, info_only) : codes d'obligations universelles à évaluer
+    vs. à afficher en simple rappel (protections après les faits U4/U5)."""
+    profil = dossier.get("parcours_a_profil") or {}
+    completed = bool(profil.get("completed"))
+    applicable, info_only = [], []
+    for t in UNIVERSAL_THEMES:
+        g = t.get("gate")
+        if g == "info_only":
+            info_only.append(t["id"])
+            continue
+        if not completed or _parcours_a_gate_ok(g, profil):
+            applicable.append(t["id"])
+    return applicable, info_only
+
+
 def enrich_dossier(d: dict) -> dict:
     d.pop("_id", None)
     d["regime"] = d.get("regime") or "B"
@@ -266,11 +306,14 @@ def enrich_dossier(d: dict) -> dict:
     d["req_declaration_requise"] = d.get("regime") == "A" and (d.get("nb_employes_quebec") or 0) >= 5
     d.setdefault("req_declaration", None)
     _ua = d.get("parcours_a_elements") or {}
-    _uni_codes = [t["id"] for t in UNIVERSAL_THEMES]
-    _traites = sum(1 for c in _uni_codes if (_ua.get(c) or {}).get("statut") not in (None, "non_evalue"))
+    _applicable, _info_only = parcours_a_sets(d)
+    d["parcours_a_applicable"] = _applicable
+    d["parcours_a_info_only"] = _info_only
+    d["parcours_a_profil"] = d.get("parcours_a_profil") or None
+    _traites = sum(1 for c in _applicable if (_ua.get(c) or {}).get("statut") not in (None, "non_evalue"))
     if d["req_declaration_requise"] and d.get("req_declaration"):
         _traites += 1
-    d["parcours_a_total"] = len(_uni_codes) + (1 if d["req_declaration_requise"] else 0)
+    d["parcours_a_total"] = len(_applicable) + (1 if d["req_declaration_requise"] else 0)
     d["parcours_a_traites"] = _traites
     pl = d.get("plainte")
     d["plainte_ouverte"] = bool(pl and pl.get("ouverte"))
@@ -1056,7 +1099,40 @@ async def save_req_declaration(dossier_id: str, body: ReqDeclarationIn,
     return enrich_dossier(updated)
 
 
-@api.get("/dossiers/{dossier_id}/export/regime-a")
+@api.put("/dossiers/{dossier_id}/parcours-a/profil")
+async def save_parcours_a_profil(dossier_id: str, body: ParcoursAProfilIn,
+                                 user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    if (d.get("regime") or "B") != "A":
+        raise HTTPException(status_code=400, detail="Réservé au régime des obligations universelles.")
+    nb = max(0, body.nb_employes or 0)
+    nbf = max(0, min(body.nb_francais or 0, nb))
+    non_franco = nb - nbf
+    proportion = round((non_franco / nb) * 100, 1) if nb else 0.0
+    now = datetime.now(timezone.utc).isoformat()
+    profil = {
+        "neq": (body.neq or "").strip(),
+        "nom_legal": (body.nom_legal or "").strip(),
+        "marques": body.marques or [],
+        "syndicat": bool(body.syndicat),
+        "vend_produits": bool(body.vend_produits),
+        "vend_jouets": bool(body.vend_jouets),
+        "immo_residentiel": bool(body.immo_residentiel),
+        "nb_employes": nb, "nb_francais": nbf,
+        "req_preparatoire": {"non_francophones": non_franco, "proportion": proportion},
+        "completed": True, "updated_at": now,
+    }
+    upd = {"parcours_a_profil": profil, "nb_employes_quebec": nb, "updated_at": now}
+    if profil["neq"]:
+        upd["neq"] = profil["neq"]
+    if profil["nom_legal"]:
+        upd["nom_entreprise"] = profil["nom_legal"]
+    await db.dossiers.update_one({"id": dossier_id}, {"$set": upd})
+    await audit(dossier_id, user,
+                f"Profil Parcours A enregistré (syndicat={profil['syndicat']}, produits={profil['vend_produits']}, "
+                f"jouets={profil['vend_jouets']}, immo={profil['immo_residentiel']}, {nbf}/{nb} en français)")
+    updated = await db.dossiers.find_one({"id": dossier_id})
+    return enrich_dossier(updated)
 async def export_regime_a(dossier_id: str, user: dict = Depends(get_current_user)):
     d = await get_owned_dossier(dossier_id, user)
     await audit(dossier_id, user, "Export PDF — Rapport de conformité (obligations universelles)")

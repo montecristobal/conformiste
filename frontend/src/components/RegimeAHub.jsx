@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ParcoursAElements } from "@/components/ParcoursAElements";
+import { ParcoursAProfil } from "@/components/ParcoursAProfil";
 import { GanttParcoursA } from "@/components/GanttParcoursA";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { AmorcePanel } from "@/components/AmorcePanel";
 import { AnalyseTab } from "@/components/AnalyseTab";
 import { AuditLog } from "@/components/AuditLog";
-import { ArrowLeft, ClipboardCheck, MessageSquareWarning, Smartphone, ScanSearch, History, List, GanttChartSquare } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, MessageSquareWarning, Smartphone, ScanSearch, History, List, GanttChartSquare, UserSearch } from "lucide-react";
 
 function HubCard({ testid, icon: Icon, title, desc, meta, onOpen }) {
   return (
@@ -31,13 +32,17 @@ const BackBar = ({ label, onBack }) => (
 
 export const RegimeAHub = ({ dossier, onUpdated, reload }) => {
   const [view, setView] = useState("hub");
-  const [aView, setAView] = useState("liste");
+  const [aView, setAView] = useState(dossier.parcours_a_profil?.completed ? "liste" : "profil");
 
   if (view === "A") {
     return (
       <div data-testid="parcours-a-view">
         <BackBar label="Parcours A — Mise en conformité" onBack={() => setView("hub")} />
         <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 mb-4">
+          <button onClick={() => setAView("profil")} data-testid="parcoursa-view-profil"
+            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${aView === "profil" ? "bg-white shadow-sm text-[#0F2B48]" : "text-slate-500 hover:text-slate-700"}`}>
+            <UserSearch size={15} /> Profil / démarrage
+          </button>
           <button onClick={() => setAView("liste")} data-testid="parcoursa-view-liste"
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all ${aView === "liste" ? "bg-white shadow-sm text-[#0F2B48]" : "text-slate-500 hover:text-slate-700"}`}>
             <List size={15} /> Liste des obligations
@@ -47,9 +52,11 @@ export const RegimeAHub = ({ dossier, onUpdated, reload }) => {
             <GanttChartSquare size={15} /> Diagramme de Gantt
           </button>
         </div>
-        {aView === "liste"
-          ? <ParcoursAElements dossier={dossier} onUpdated={onUpdated} onGoAnalyse={() => setView("analyse")} />
-          : <GanttParcoursA dossier={dossier} onUpdated={onUpdated} />}
+        {aView === "profil"
+          ? <ParcoursAProfil dossier={dossier} onUpdated={(d) => { onUpdated(d); setAView("liste"); }} />
+          : aView === "liste"
+            ? <ParcoursAElements dossier={dossier} onUpdated={onUpdated} onGoAnalyse={() => setView("analyse")} />
+            : <GanttParcoursA dossier={dossier} onUpdated={onUpdated} />}
       </div>
     );
   }

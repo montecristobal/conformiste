@@ -84,8 +84,12 @@ export const GanttParcoursA = ({ dossier, onUpdated }) => {
   }, [dossier.id]);
 
   const rows = useMemo(() => {
-    const ordered = [...themes].sort((a, b) =>
-      (a.prioritaire_amorce === b.prioritaire_amorce) ? a.ordre - b.ordre : (a.prioritaire_amorce ? -1 : 1));
+    const applicable = dossier.parcours_a_applicable;
+    const applicableSet = applicable ? new Set(applicable) : null;
+    const ordered = [...themes]
+      .filter((t) => !applicableSet || applicableSet.has(t.id))
+      .sort((a, b) =>
+        (a.prioritaire_amorce === b.prioritaire_amorce) ? a.ordre - b.ordre : (a.prioritaire_amorce ? -1 : 1));
     const list = ordered.map((t) => {
       const saved = els[t.id];
       const eff = effectiveDates(saved, today);
@@ -106,7 +110,7 @@ export const GanttParcoursA = ({ dossier, onUpdated }) => {
       });
     }
     return list;
-  }, [themes, els, dossier.req_declaration_requise, today]);
+  }, [themes, els, dossier.req_declaration_requise, dossier.parcours_a_applicable, today]);
 
   if (loading) return <div className="flex items-center gap-2 text-slate-400 p-8"><Loader2 className="animate-spin" size={18} /> Chargement…</div>;
 
