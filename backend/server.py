@@ -829,6 +829,7 @@ class ParcoursAElementIn(BaseModel):
     date_debut: Optional[str] = None
     date_echeance: Optional[str] = None
     incontournable: Optional[bool] = None
+    donnees: Optional[Dict[str, Any]] = None
 
 
 @api.patch("/dossiers/{dossier_id}/parcours-a/element/{code}")
@@ -851,12 +852,25 @@ async def update_parcours_a_element(dossier_id: str, code: str, body: ParcoursAE
         cur["date_echeance"] = body.date_echeance or None
     if body.incontournable is not None:
         cur["incontournable"] = bool(body.incontournable)
+    if body.donnees is not None:
+        cur["donnees"] = body.donnees
+        # L'outil DOCUMENTE, il ne juge pas : dès qu'une donnée est saisie et
+        # qu'aucun statut n'est fixé, on marque « à valider » (jamais conforme auto).
+        if body.statut is None and cur.get("statut") in (None, "non_evalue") and any(
+                v not in (None, "", []) for v in body.donnees.values()):
+            cur["statut"] = "a_valider"
     cur["updated_at"] = datetime.now(timezone.utc).isoformat()
     els[code] = cur
     await db.dossiers.update_one({"id": dossier_id},
                                  {"$set": {"parcours_a_elements": els, "updated_at": cur["updated_at"]}})
     await audit(dossier_id, user, f"Parcours A — élément {code}", body.statut or "")
     return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
+@api.get("/catalogue/parcours-a/questions")
+async def get_parcours_a_questions(user: dict = Depends(get_current_user)):
+    from catalogue import PARCOURS_A_QUESTIONS
+    return PARCOURS_A_QUESTIONS
 
 
 class MesureIn(BaseModel):

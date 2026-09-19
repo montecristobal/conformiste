@@ -533,3 +533,65 @@ CNP_TASK_LIBRARY = [
         "Résoudre les problèmes courants ou les transférer à un superviseur",
     ]},
 ]
+
+
+# ==================================================================
+# Questions guidées par obligation universelle (Parcours A, Phase 2).
+# Principe : SAISIE STRUCTURÉE DE FAITS + preuves, JAMAIS de verdict de conformité.
+# U6 possède son propre outil dédié ; U4/U5 sont de simples rappels (exclus ici).
+# type: "fait" (Oui/Non/S.O. — fait déclaré) | "text" (précision).
+# ==================================================================
+PARCOURS_A_QUESTIONS = {
+    "U1": [
+        {"id": "ecrites_fr", "type": "fait", "label": "Vos communications écrites au personnel (courriels, notes de service, politiques) sont-elles disponibles en français ?"},
+        {"id": "exemples", "type": "text", "label": "Exemples de communications concernées"},
+    ],
+    "U2": [
+        {"id": "offres_fr", "type": "fait", "label": "Vos offres d'emploi, de mutation ou de promotion sont-elles diffusées en français, en même temps que dans toute autre langue ?"},
+        {"id": "canaux", "type": "text", "label": "Canaux de diffusion (site, agences, réseaux sociaux…)"},
+    ],
+    "U3": [
+        {"id": "convention_fr", "type": "fait", "label": "La convention collective et ses annexes sont-elles rédigées en français ?"},
+        {"id": "sentences_fr", "type": "fait", "label": "Les sentences arbitrales rendues dans une autre langue sont-elles accompagnées d'une version française ?"},
+    ],
+    "U7": [
+        {"id": "asso_fr", "type": "fait", "label": "L'association de travailleurs communique-t-elle en français avec ses membres ?"},
+    ],
+    "U8": [
+        {"id": "assurance_fr", "type": "fait", "label": "Les contrats et documents d'assurance collective sont-ils disponibles en français ?"},
+    ],
+    "U9": [
+        {"id": "service_fr", "type": "fait", "label": "La clientèle (et le public) peut-elle être informée et servie en français (accueil, téléphone, en ligne) ?"},
+        {"id": "points_contact", "type": "text", "label": "Principaux points de contact avec la clientèle"},
+    ],
+    "U10": [
+        {"id": "produits_fr", "type": "fait", "label": "Les inscriptions sur vos produits, emballages et modes d'emploi sont-elles en français ?"},
+        {"id": "menus_fr", "type": "fait", "label": "Le cas échéant, vos menus et cartes des vins sont-ils en français ?"},
+    ],
+    "U11": [
+        {"id": "docs_fr", "type": "fait", "label": "Vos catalogues, brochures, dépliants et bons de commande destinés au public sont-ils en français ?"},
+    ],
+    "U12": [
+        {"id": "logiciels_fr", "type": "fait", "label": "Les logiciels utilisés sont-ils disponibles en français lorsqu'une version française existe ?"},
+        {"id": "logiciels_liste", "type": "text", "label": "Logiciels concernés"},
+    ],
+    "U13": [
+        {"id": "adhesion_fr", "type": "fait", "label": "Vos contrats d'adhésion et les documents qui s'y rattachent sont-ils rédigés en français ?"},
+    ],
+    "U14": [
+        {"id": "factures_fr", "type": "fait", "label": "Vos factures, reçus et quittances sont-ils rédigés en français ?"},
+    ],
+    "U15": [
+        {"id": "affichage_fr", "type": "fait", "label": "Votre affichage public et votre publicité commerciale sont-ils en français (nettement prédominant si une autre langue est présente) ?"},
+        {"id": "emplacements", "type": "text", "label": "Emplacements d'affichage (façade, enseigne, intérieur, site Web…)"},
+    ],
+    "U16": [
+        {"id": "nom_fr", "type": "fait", "label": "Le nom de votre entreprise est-il en français (ou la version française au moins aussi évidente que toute autre) ?"},
+    ],
+    "U17": [
+        {"id": "jouets_fr", "type": "fait", "label": "Les jouets/jeux exigeant un vocabulaire autre que français disposent-ils d'une version française offerte dans des conditions au moins aussi favorables ?"},
+    ],
+    "U18": [
+        {"id": "immeuble_fr", "type": "fait", "label": "Les contrats relatifs à un immeuble résidentiel visés par l'art. 55.1 sont-ils disponibles en français ?"},
+    ],
+}

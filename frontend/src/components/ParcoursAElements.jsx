@@ -3,7 +3,7 @@ import api from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { RegimeAReq } from "@/components/RegimeAReq";
 import { U6Tool } from "@/components/U6Tool";
@@ -12,11 +12,16 @@ import {
 } from "lucide-react";
 
 const STATUTS = [
-  { value: "non_evalue", label: "Non évalué", cls: "bg-slate-100 text-slate-500" },
+  { value: "non_evalue", label: "À documenter", cls: "bg-slate-100 text-slate-500" },
+  { value: "a_valider", label: "Documenté — à valider", cls: "bg-amber-100 text-amber-700" },
   { value: "conforme", label: "Conforme", cls: "bg-emerald-100 text-emerald-700" },
-  { value: "a_valider", label: "À valider", cls: "bg-amber-100 text-amber-700" },
   { value: "non_conforme", label: "Non conforme", cls: "bg-red-100 text-red-700" },
   { value: "sans_objet", label: "Sans objet", cls: "bg-slate-100 text-slate-400" },
+];
+const FAIT_OPTS = [
+  { v: "oui", label: "Oui" },
+  { v: "non", label: "Non" },
+  { v: "so", label: "S.O." },
 ];
 
 function InfoOnlyCard({ theme, index }) {
@@ -44,14 +49,16 @@ function InfoOnlyCard({ theme, index }) {
   );
 }
 
-function ElementCard({ dossierId, theme, index, saved, findings, onUpdated, onOpenU6 }) {
-  const [statut, setStatut] = useState(saved?.statut || "non_evalue");
+function ElementCard({ dossierId, theme, index, saved, findings, questions, onUpdated, onOpenU6 }) {
+  const isU6 = theme.id === "U6";
+  const [donnees, setDonnees] = useState(saved?.donnees || {});
   const [note, setNote] = useState(saved?.note || "");
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pieces, setPieces] = useState([]);
   const cat = `parcoursA:${theme.id}`;
-  const st = STATUTS.find((x) => x.value === statut) || STATUTS[0];
+  const st = STATUTS.find((x) => x.value === (saved?.statut || "non_evalue")) || STATUTS[0];
+  const qs = questions || [];
 
   const loadPieces = () => api.get(`/dossiers/${dossierId}/documents`)
     .then(({ data }) => setPieces(data.filter((d) => d.category === cat))).catch(() => {});
@@ -60,8 +67,8 @@ function ElementCard({ dossierId, theme, index, saved, findings, onUpdated, onOp
   const save = async () => {
     setBusy(true);
     try {
-      const { data } = await api.patch(`/dossiers/${dossierId}/parcours-a/element/${theme.id}`, { statut, note });
-      toast.success("Élément mis à jour");
+      const { data } = await api.patch(`/dossiers/${dossierId}/parcours-a/element/${theme.id}`, { donnees, note });
+      toast.success("Obligation documentée");
       onUpdated(data);
     } catch (e) { toast.error("Erreur"); } finally { setBusy(false); }
   };
@@ -95,36 +102,53 @@ function ElementCard({ dossierId, theme, index, saved, findings, onUpdated, onOp
         </div>
       )}
 
-      {theme.id === "U6" && (
+      {isU6 ? (
         <button onClick={onOpenU6} data-testid="parcoursa-open-u6"
           className="w-full flex items-center justify-between gap-2 rounded-lg border-2 border-indigo-200 hover:border-indigo-400 bg-indigo-50/60 px-3 py-2.5 transition-all">
           <span className="flex items-center gap-2 text-sm font-semibold text-[#0F2B48]"><Languages size={16} className="text-indigo-600" /> Ouvrir l'outil d'évaluation (par poste, art. 46/46.1)</span>
           <ChevronRight size={16} className="text-indigo-500" />
         </button>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {qs.map((q) => (
+              <div key={q.id} className="space-y-1.5" data-testid={`parcoursa-q-${theme.id}-${q.id}`}>
+                <Label className="text-xs text-slate-600">{q.label}</Label>
+                {q.type === "fait" ? (
+                  <div className="flex gap-1.5">
+                    {FAIT_OPTS.map((o) => {
+                      const on = donnees[q.id] === o.v;
+                      return <button key={o.v} type="button" onClick={() => setDonnees((s) => ({ ...s, [q.id]: o.v }))}
+                        data-testid={`parcoursa-q-${theme.id}-${q.id}-${o.v}`}
+                        className={`text-xs px-3 py-1 rounded-full border ${on ? "bg-[#0F2B48] text-white border-[#0F2B48]" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}>{o.label}</button>;
+                    })}
+                  </div>
+                ) : (
+                  <Textarea rows={2} value={donnees[q.id] || ""} onChange={(e) => setDonnees((s) => ({ ...s, [q.id]: e.target.value }))} />
+                )}
+              </div>
+            ))}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-600">Précisions / mesures prévues pour être conforme</Label>
+              <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Décrivez la situation et, au besoin, les correctifs prévus (dates, responsables…)." data-testid={`parcoursa-note-${theme.id}`} />
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400">Cet outil documente les faits ; il ne rend aucun verdict de conformité automatique.</p>
+        </>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
-        <div className="space-y-1.5">
-          <Select value={statut} onValueChange={setStatut}>
-            <SelectTrigger data-testid={`parcoursa-statut-${theme.id}`}><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-white">{STATUTS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-          </Select>
+      {!isU6 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={save} disabled={busy} className="bg-[#0F2B48] hover:bg-[#0F2B48]/90" data-testid={`parcoursa-save-${theme.id}`}><Save size={14} className="mr-1" /> Enregistrer</Button>
+          <label className="inline-flex items-center gap-1 text-sm text-[#2563EB] cursor-pointer hover:underline">
+            <Paperclip size={14} /> Preuve
+            <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={upload} data-testid={`parcoursa-upload-${theme.id}`} />
+          </label>
+          <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 ml-auto">
+            {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Texte de loi
+          </button>
         </div>
-        <div className="sm:col-span-2">
-          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note / justification" data-testid={`parcoursa-note-${theme.id}`} />
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={save} disabled={busy} className="bg-[#0F2B48] hover:bg-[#0F2B48]/90" data-testid={`parcoursa-save-${theme.id}`}><Save size={14} className="mr-1" /> Enregistrer</Button>
-        <label className="inline-flex items-center gap-1 text-sm text-[#2563EB] cursor-pointer hover:underline">
-          <Paperclip size={14} /> Preuve
-          <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={upload} data-testid={`parcoursa-upload-${theme.id}`} />
-        </label>
-        <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 ml-auto">
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />} Texte de loi
-        </button>
-      </div>
+      )}
 
       {pieces.length > 0 && (
         <div className="space-y-1">
@@ -138,7 +162,7 @@ function ElementCard({ dossierId, theme, index, saved, findings, onUpdated, onOp
         </div>
       )}
 
-      {open && (
+      {open && !isU6 && (
         <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
           <p className="text-[13px] text-slate-600 whitespace-pre-line">{theme.texte_loi || "Texte non disponible."}</p>
           {theme.external_citation && <p className="text-[11px] text-slate-400 mt-2">{theme.external_citation}</p>}
@@ -151,6 +175,7 @@ function ElementCard({ dossierId, theme, index, saved, findings, onUpdated, onOp
 export const ParcoursAElements = ({ dossier, onUpdated, onGoAnalyse }) => {
   const [themes, setThemes] = useState([]);
   const [plan, setPlan] = useState([]);
+  const [questionsMap, setQuestionsMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [u6Open, setU6Open] = useState(false);
   const els = dossier.parcours_a_elements || {};
@@ -160,8 +185,12 @@ export const ParcoursAElements = ({ dossier, onUpdated, onGoAnalyse }) => {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([api.get("/catalogue/themes?regime=A"), api.get(`/dossiers/${dossier.id}/plan-correction`)])
-      .then(([t, p]) => { setThemes(t.data); setPlan(p.data); }).catch(() => {}).finally(() => setLoading(false));
+    Promise.all([
+      api.get("/catalogue/themes?regime=A"),
+      api.get(`/dossiers/${dossier.id}/plan-correction`),
+      api.get("/catalogue/parcours-a/questions"),
+    ]).then(([t, p, q]) => { setThemes(t.data); setPlan(p.data); setQuestionsMap(q.data); })
+      .catch(() => {}).finally(() => setLoading(false));
   }, [dossier.id]);
 
   const byTheme = {};
@@ -188,7 +217,7 @@ export const ParcoursAElements = ({ dossier, onUpdated, onGoAnalyse }) => {
       )}
 
       {evalues.map((t, i) => (
-        <ElementCard key={t.id} dossierId={dossier.id} theme={t} index={i + 1} saved={els[t.id]} findings={byTheme[t.id]} onUpdated={onUpdated} onOpenU6={() => setU6Open(true)} />
+        <ElementCard key={t.id} dossierId={dossier.id} theme={t} index={i + 1} saved={els[t.id]} findings={byTheme[t.id]} questions={questionsMap[t.id]} onUpdated={onUpdated} onOpenU6={() => setU6Open(true)} />
       ))}
 
       {rappels.length > 0 && (
