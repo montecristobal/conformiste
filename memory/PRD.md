@@ -280,6 +280,22 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 ## Refonte Parcours A — PHASE 2 (À FAIRE, prochaine étape)
 - Remplacer, pour chaque obligation applicable, le duo « statut Non évalué + note justificative » par une **saisie de données guidée + téléversement de fichiers/photos**, à partir desquels **CONFORMISTE produit un diagnostic** (constat + actions correctives) via l'analyse IA (OpenAI direct).
 
+## Refonte Parcours A — PHASE 2 (2026-06, itération 30) — PILOTE U6
+- **Outil d'évaluation U6** (exigence d'une autre langue, art. 46/46.1) accessible depuis la carte U6 (`ParcoursAElements` → bouton `parcoursa-open-u6` → `U6Tool.jsx`). Par **poste/catégorie d'emploi** (ajout/édition/suppression), en 5 sections :
+  - **0** Identification (titre, postes visés/total, langues exigées).
+  - **0bis** Description de tâches — **bibliothèque intégrée** de 3 fiches-types CNP (caissier, commis aux ventes, préposé au service à la clientèle) sélectionnables et éditables, chaque tâche avec case « nécessite une autre langue ». Avertissement si aucune tâche.
+  - **1** Besoins réels (interlocuteurs, fréquence, % non-francophones — présenté comme fait, pas un seuil, nature des tâches, téléversement de preuves).
+  - **2** Insuffisance des connaissances (inventaire, vérification formelle/informelle ; avertissement si informelle).
+  - **3** Réduction des postes + **garde-fou art. 40.1 toujours visible** + case de confirmation (avertissement si non cochée, jamais bloquant).
+  - **4** Motif d'offre (art. 46 al. 2) avec **aide IA de rédaction** (`u6_ai.draft_motif`, OpenAI direct gpt-5.4) à partir des faits documentés.
+- **RÈGLE CLÉ respectée** : aucun verdict/score de conformité automatique. L'outil DOCUMENTE ; l'enregistrement marque U6 « À valider » (jamais « Conforme » auto). Export PDF « dossier de démarche documentée » (garde-fous + avertissements inclus).
+- **Backend** : `GET /catalogue/u6/cnp-library`, `GET/PUT /dossiers/{id}/parcours-a/u6`, `POST .../u6/motif-draft`, `GET .../u6/pdf?poste_id=` ; `pdf_export.build_u6_pdf` ; `catalogue.CNP_TASK_LIBRARY`.
+- **Correctif au passage** : le décorateur `@api.get(.../export/regime-a)` avait été supprimé par erreur en Phase 1 — restauré.
+- Vérifié : testing agent frontend **100 %** (iteration_23) — 5 sections, bibliothèque CNP, garde-fous non bloquants, IA motif factuelle sans verdict, persistance, PDF 200, statut « À valider », non-régression (Profil/Liste/Gantt/Parcours B). PDF rendu vérifié visuellement.
+
+## Refonte Parcours A — PHASE 2 (suite, à venir)
+- Décliner le même principe (saisie structurée + preuves, sans verdict) aux autres obligations applicables (au-delà de U6).
+
 ## À VENIR (convenu avec l'utilisateur)
 - **Vue d'ensemble PRO multi-dossiers** (Gantt portefeuille vs Kanban) : à rediscuter avec l'utilisateur — lui présenter une maquette Gantt vs Kanban pour suivre l'ensemble des dossiers clients d'un consultant PRO.
 - **Rappels échéances (mesures + Gantt)** : proposés à l'utilisateur (alertes in-app + courriel hebdo) — en attente de « oui ».

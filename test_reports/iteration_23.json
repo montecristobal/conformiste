@@ -1,0 +1,19 @@
+{
+  "summary": "Frontend-only end-to-end test of U6 pilot tool (Parcours A, Régime A). All 12 review items PASS. The tool documents facts poste-par-poste without producing any conformity verdict; warnings are informational (never blocking); AI motif drafting works; PDF export works; data persists across reloads; U6 status stays 'À valider' (never auto-'Conforme'). Non-regression on Profil/Liste/Gantt/Parcours B verified.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "U6Tool.jsx (309 lignes) reste sous le seuil 700 mais mélange 3 composants (TaskUploads, PosteEditor, U6Tool); envisager de scinder si de nouvelles sections s'ajoutent.",
+    "u6-warn-verif s'affiche pour toute valeur !== 'formelle' (y compris valeurs futures inconnues). Actuellement OK car le Select n'expose que 'formelle' | 'informelle', mais la condition serait plus lisible en `=== 'informelle'`."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "Régime A: ganttpme_1789830672@test.ca / Test2026!",
+  "seed_data_creation": "Ajouté un poste TEST_Analyste bilingue via l'UI puis supprimé. Poste seed 'pste1' (Préposé au service à la clientèle) préservé.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Playwright sur https://conformiste-core.preview.emergentagent.com — Dossier 7a58a8ec-bd3e-4c06-b67c-95872374c068. RÉSULTATS: (1) Login OK. (2) parcoursa-open-u6 -> u6-tool s'affiche; poste seed 'pste1' présent avec les 5 sections déjà renseignées; parcoursa-status-U6 = 'À valider' (jamais Conforme auto). (3) u6-add-poste: 1->2 postes, u6-poste-editor apparaît; suppression via bouton trash dans le tab -> 2->1, persisté après save. (4) Section 0: u6-titre, u6-nb-vises, u6-nb-total, u6-langues fillable. (5) Section 0bis: u6-library-select expose 3 fiches CNP ('Caissier', 'Commis aux ventes', 'Préposé au service à la clientèle'); sélection remplit 6 tâches avec case u6-task-lang-0/1/...; u6-warn-notasks visible si vide, disparaît après sélection; u6-add-task ajoute une ligne. (6) Section 1: u6-interloc-clientele/fournisseurs togglables; u6-frequence (Radix Select) OK avec Quotidienne/Hebdomadaire/Occasionnelle; u6-pct + u6-nature fillables; upload preuve u6-preuve-upload présent. (7) Section 2: u6-inventaire OK; u6-verif-type='informelle' déclenche u6-warn-verif (avertissement, ne bloque pas). (8) Section 3: u6-moyens OK; u6-gardefou TOUJOURS visible (badge rouge 40.1); u6-warn-401 affiché tant que u6-confirm-401 non coché, disparaît après check. (9) Section 4: u6-motif-draft appelle POST /api/v1/dossiers/{id}/parcours-a/u6/motif-draft, retour IA en ~4s (291 chars), texte factuel sans aucun terme 'conforme/verdict/non conforme'. Toast 'Proposition de rédaction insérée'. (10) u6-save -> toast 'Outil U6 enregistré'; après reload, les 2 postes persistés avec titres corrects. (11) u6-export-pdf: GET /api/v1/dossiers/{id}/parcours-a/u6/pdf?poste_id=... -> 200 application/pdf + toast 'Dossier PDF exporté'. (12) Marquage neutre: parcoursa-status-U6 = 'À valider' après enregistrement (jamais 'Conforme'). Non-régression: Parcours A -> Profil (parcoursa-profil rendu), Gantt (17 barres gantt-parcoursa-grid-bar-*), Liste OK; Parcours B (Kanban) : 5 colonnes + tickets seed intacts.",
+  "rca of the issue": "n/a — aucun problème détecté."
+}

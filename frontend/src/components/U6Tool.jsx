@@ -182,7 +182,7 @@ function PosteEditor({ dossierId, poste, library, onChange, onDraftMotif, drafti
               <SelectItem value="informelle">De manière informelle (supposition)</SelectItem>
             </SelectContent>
           </Select></div>
-        {p.section2.verification_type && p.section2.verification_type !== "formelle" &&
+        {p.section2.verification_type === "informelle" &&
           <Warn testid="u6-warn-verif">Ce critère de l'art. 46.1 exige de s'être ASSURÉ, pas d'avoir présumé, que les connaissances existantes sont insuffisantes.</Warn>}
         <div className="space-y-1.5"><Label className="text-xs">Détails</Label>
           <Textarea rows={2} value={p.section2.details} onChange={(e) => setSec("section2", { details: e.target.value })} data-testid="u6-verif-details" /></div>
