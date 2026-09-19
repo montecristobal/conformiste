@@ -233,6 +233,12 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - **Parcours B** = module de plainte existant (9 étapes, lettres, PDF) rebranché dans le hub. La « Déclaration REQ » n'est plus un parcours séparé mais une étape du Parcours A.
 - Vérifié : flux UI complet (/ → PME → register sans SOLO/PRO → hub A/B → Parcours A), curl (total=19, patch élément incrémente, Régime B → 400), pytest segmentation.
 
+## Implémenté (2026-06 — itération 25, Kanban de traitement d'une plainte + modèle « Mesure »)
+- **Unité « Mesure »** (partagée Parcours A/B) : `dossier.mesures[]` avec titre, élément lié, description, moyen, responsable, date début/échéance, `incontournable`, statut, validité (fondée/non fondée), gravité, checklist de preuves, journal (append-only), pièces (documents `mesure:<id>`). Endpoints `POST/PATCH/DELETE /dossiers/{id}/mesures`.
+- **Parcours B → Kanban** (`KanbanBoard.jsx`) : 6 colonnes OQLF (Réception & Analyse · En attente de réponse OQLF · Correctif en cours · Validation de la preuve · Notification envoyée · Fermé/Conforme). Cartes = mesures ; déplacement par menu déroulant ; date butoir rouge à J‑10/J‑5 ; pastilles gravité/validité ; alerte inspecteur ; checklist + preuves + journal traçable. Remplace l'ancien PlaintePanel dans le hub.
+- Vérifié : curl CRUD (create/move/echange/incontournable/delete) + capture Kanban.
+- **À VENIR (prochain tour)** : Parcours A → vue **Gantt** (barres par élément U1–U19). **Rappels/résumé hebdo des échéances de mesures : en attente d'approbation utilisateur.**
+
 ## Prochaines tâches (backlog)
 - **Stripe Payments (P0)** : abonnements PRO/SOLO (clé env disponible dans le pod).
 - **Module 2 (P1)** : autres formulaires/modules.

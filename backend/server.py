@@ -799,6 +799,95 @@ async def update_parcours_a_element(dossier_id: str, code: str, body: ParcoursAE
     return enrich_dossier(await get_owned_dossier(dossier_id, user))
 
 
+class MesureIn(BaseModel):
+    parcours: str = "B"  # A (projet) | B (plainte)
+    titre: str
+    element_code: Optional[str] = None
+    no_dossier_oqlf: Optional[str] = ""
+    description: Optional[str] = ""
+    moyen: Optional[str] = ""
+    responsable: Optional[str] = ""
+    date_debut: Optional[str] = None
+    date_echeance: Optional[str] = None
+    incontournable: bool = False
+    statut: Optional[str] = "reception"
+    validite: Optional[str] = None  # fondee | non_fondee
+    gravite: Optional[str] = None   # critique | moyen
+
+
+class MesurePatchIn(BaseModel):
+    titre: Optional[str] = None
+    element_code: Optional[str] = None
+    no_dossier_oqlf: Optional[str] = None
+    description: Optional[str] = None
+    moyen: Optional[str] = None
+    responsable: Optional[str] = None
+    date_debut: Optional[str] = None
+    date_echeance: Optional[str] = None
+    incontournable: Optional[bool] = None
+    statut: Optional[str] = None
+    validite: Optional[str] = None
+    gravite: Optional[str] = None
+    echange: Optional[str] = None
+    checklist: Optional[list] = None
+
+
+@api.post("/dossiers/{dossier_id}/mesures")
+async def create_mesure(dossier_id: str, body: MesureIn, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    now = datetime.now(timezone.utc).isoformat()
+    m = {"id": str(uuid.uuid4()), "parcours": body.parcours, "titre": body.titre,
+         "element_code": body.element_code, "no_dossier_oqlf": body.no_dossier_oqlf or "",
+         "description": body.description or "", "moyen": body.moyen or "",
+         "responsable": body.responsable or "", "date_debut": body.date_debut,
+         "date_echeance": body.date_echeance, "incontournable": bool(body.incontournable),
+         "statut": body.statut or "reception", "validite": body.validite, "gravite": body.gravite,
+         "checklist": [], "journal": [], "created_at": now, "updated_at": now}
+    await db.dossiers.update_one({"id": dossier_id}, {"$push": {"mesures": m}, "$set": {"updated_at": now}})
+    await audit(dossier_id, user, f"Mesure créée — {body.titre}")
+    return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
+@api.patch("/dossiers/{dossier_id}/mesures/{mesure_id}")
+async def update_mesure(dossier_id: str, mesure_id: str, body: MesurePatchIn,
+                        user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    mesures = d.get("mesures") or []
+    found = None
+    for m in mesures:
+        if m["id"] == mesure_id:
+            found = m
+            for f in ("titre", "element_code", "no_dossier_oqlf", "description", "moyen",
+                      "responsable", "date_debut", "date_echeance", "incontournable",
+                      "statut", "validite", "gravite"):
+                v = getattr(body, f)
+                if v is not None:
+                    m[f] = v
+            if body.checklist is not None:
+                m["checklist"] = body.checklist
+            if body.echange:
+                m.setdefault("journal", []).append({
+                    "date": datetime.now(timezone.utc).isoformat(),
+                    "auteur": user["email"], "texte": body.echange})
+            m["updated_at"] = datetime.now(timezone.utc).isoformat()
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Mesure introuvable")
+    await db.dossiers.update_one({"id": dossier_id},
+                                 {"$set": {"mesures": mesures, "updated_at": found["updated_at"]}})
+    await audit(dossier_id, user, f"Mesure mise à jour — {found.get('titre', '')}", body.statut or "")
+    return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
+@api.delete("/dossiers/{dossier_id}/mesures/{mesure_id}")
+async def delete_mesure(dossier_id: str, mesure_id: str, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    mesures = [m for m in (d.get("mesures") or []) if m["id"] != mesure_id]
+    await db.dossiers.update_one({"id": dossier_id}, {"$set": {"mesures": mesures}})
+    await audit(dossier_id, user, "Mesure supprimée")
+    return enrich_dossier(await get_owned_dossier(dossier_id, user))
+
+
 @api.post("/dossiers/{dossier_id}/plainte")
 async def open_plainte(dossier_id: str, user: dict = Depends(get_current_user)):
     d = await get_owned_dossier(dossier_id, user)

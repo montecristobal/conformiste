@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ParcoursAElements } from "@/components/ParcoursAElements";
-import { PlaintePanel } from "@/components/PlaintePanel";
+import { KanbanBoard } from "@/components/KanbanBoard";
 import { AmorcePanel } from "@/components/AmorcePanel";
 import { AnalyseTab } from "@/components/AnalyseTab";
 import { AuditLog } from "@/components/AuditLog";
@@ -43,7 +43,7 @@ export const RegimeAHub = ({ dossier, onUpdated, reload }) => {
     return (
       <div data-testid="parcours-b-view">
         <BackBar label="Parcours B — Traitement d'une plainte" onBack={() => setView("hub")} />
-        <PlaintePanel dossier={dossier} onUpdated={onUpdated} />
+        <KanbanBoard dossier={dossier} onUpdated={onUpdated} />
       </div>
     );
   }
