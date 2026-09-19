@@ -258,6 +258,18 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 - Vérifié : testing agent frontend **100 %** (iteration_20) — rendu, couleurs, édition + persistance après reload, bascule, + non-régression Gantt Parcours A. Aucun bug.
 - **Rappels/alertes SLA : toujours non activés (en attente d'approbation utilisateur).**
 
+## Implémenté (2026-06 — itération 28, Export Gantt PDF/PNG + Portefeuille PRO)
+- **Export du diagramme de Gantt (PDF + PNG)** : bouton `ExportGanttButton` (PDF/PNG) dans le Gantt Parcours A (Régime A) et le Gantt francisation (Régime B, onglet Module 2). Backend `GET /dossiers/{id}/gantt/export?kind=parcours_a|francisation&format=pdf|png` — génération reportLab (paysage, page à hauteur dynamique, barres colorées par statut, incontournables en rouge, ligne aujourd'hui, échelle par semaines) + rasterisation PNG via PyMuPDF. `pdf_export.py` → `build_gantt_pdf` / `gantt_pdf_to_png`. Journalisé (audit).
+- **Page Portefeuille PRO** (`PortefeuillePro.jsx`, route `/portefeuille`, PRO only, lien nav `nav-portefeuille`) — **MAQUETTE** de suivi d'ensemble des dossiers clients avec bascule **Gantt ↔ Kanban** :
+  - Vue Gantt : une barre par dossier (attestation → échéance légale), couleur selon urgence (bleu > 30 j, ambre ≤ 30 j, rouge critique ≤ 7 j), clic → ouvre le dossier.
+  - Vue Kanban : colonnes = 8 étapes du pipeline de francisation, cartes = dossiers placés à leur étape courante, clic → ouvre le dossier.
+  - KPI (dossiers, échéances critiques) + invite à choisir la vue principale préférée.
+- Vérifié : testing agent frontend **100 %** (iteration_21) — exports PDF/PNG (200 + toasts) sur les deux Gantt, portefeuille Gantt/Kanban + navigation, garde ProOnly (SOLO redirigé), non-régression des Gantt. Backend exports validés par curl (PDF/PNG valides).
+- **Rappels/alertes SLA : toujours non activés (en attente d'approbation utilisateur).**
+
+## À DÉCIDER (avec l'utilisateur)
+- **Vue principale du Portefeuille PRO** : l'utilisateur doit indiquer sa préférence (Gantt chronologique vs Kanban par étape) pour en faire la vue par défaut / l'affiner.
+
 ## À VENIR (convenu avec l'utilisateur)
 - **Vue d'ensemble PRO multi-dossiers** (Gantt portefeuille vs Kanban) : à rediscuter avec l'utilisateur — lui présenter une maquette Gantt vs Kanban pour suivre l'ensemble des dossiers clients d'un consultant PRO.
 - **Rappels échéances (mesures + Gantt)** : proposés à l'utilisateur (alertes in-app + courriel hebdo) — en attente de « oui ».

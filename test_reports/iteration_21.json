@@ -1,0 +1,20 @@
+{
+  "summary": "Frontend-only test of (1) Gantt PDF/PNG export buttons on Régime A Parcours A and Régime B francisation (Module 2), and (2) new PORTEFEUILLE PRO page with Gantt/Kanban toggle. All acceptance criteria PASS. No bugs found.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ExportGanttButton is small, focused and reusable (good DRY). Note: iconography — lucide's 'Image' export collides with the HTML Image constructor name if ever used outside JSX; harmless here but consider aliasing (e.g. import { Image as ImageIcon }).",
+    "PortefeuillePro.jsx: filter regimeB=(regime!=='A') is correct here since PRO consultant has only Régime B dossiers, but semantically stricter would be regime==='B' to future-proof if other regimes appear.",
+    "PortfolioKanban: cards on 'Inscription' column display 'retard 157 j' in red for many dossiers; expected given seeded overdue dates. Not a bug."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100%"},
+  "test_credentials": "PRO: vild@yuville.com / Conformiste2026! ; SOLO Régime B: ganttfr_1789834237@test.ca / Test2026! ; Régime A: ganttpme_1789830672@test.ca / Test2026!",
+  "seed_data_creation": "None — used existing seeded data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Verified end-to-end via Playwright: (a) PRO login -> nav-portefeuille visible -> /portefeuille loads, portfolio-count=168, portfolio-gantt renders 168 bars incl. portfolio-gantt-grid-today-line, 81 critical (red) bars. portfolio-view-kanban toggle shows 8 pipeline columns (portfolio-col-inscription present) with 168 cards. Click on a portfolio-gantt-grid-bar-<id> navigates to /dossier/<id>. (b) SOLO Régime B login -> nav-portefeuille count=0, direct GET /portefeuille redirects away (stayed on prior /dossier/<id>). (c) Gantt FR export: clicked gantt-export-pdf & gantt-export-png, network responses GET .../gantt/export?kind=francisation&format=pdf -> 200 application/pdf, format=png -> 200 image/png; toast 'Gantt exporté (PDF/PNG)' shown. 3 gantt-fr-grid-bar-* bars still rendered (non-regression OK). (d) Régime A Parcours A: after clicking hub-parcours-a then 'Diagramme de Gantt', 19 gantt-parcoursa-grid-bar-* bars rendered; PDF export -> 200 application/pdf, PNG -> 200 image/png, both success toasts. All 7 review items verified.",
+  "rca of the issue": "n/a — no issues found."
+}

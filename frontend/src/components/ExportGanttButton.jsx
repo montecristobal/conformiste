@@ -2,7 +2,7 @@ import { useState } from "react";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { FileDown, Image, Loader2 } from "lucide-react";
+import { FileDown, Image as ImageIcon, Loader2 } from "lucide-react";
 
 export const ExportGanttButton = ({ dossierId, kind }) => {
   const [busy, setBusy] = useState("");
@@ -28,7 +28,7 @@ export const ExportGanttButton = ({ dossierId, kind }) => {
         {busy === "pdf" ? <Loader2 size={14} className="mr-1 animate-spin" /> : <FileDown size={14} className="mr-1" />} PDF
       </Button>
       <Button size="sm" variant="outline" onClick={() => download("png")} disabled={!!busy} data-testid="gantt-export-png">
-        {busy === "png" ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Image size={14} className="mr-1" />} PNG
+        {busy === "png" ? <Loader2 size={14} className="mr-1 animate-spin" /> : <ImageIcon size={14} className="mr-1" />} PNG
       </Button>
     </div>
   );
