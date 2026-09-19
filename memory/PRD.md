@@ -296,6 +296,11 @@ Transmission à l'OQLF hors application : export PDF fidèle uniquement (aucune 
 ## Refonte Parcours A — PHASE 2 (suite, à venir)
 - Décliner le même principe (saisie structurée + preuves, sans verdict) aux autres obligations applicables (au-delà de U6).
 
+## Phase 2 étendue aux autres obligations (2026-06, itération 31)
+- Le principe U6 (saisie structurée de faits + preuves, **sans verdict**) est appliqué à **toutes les obligations universelles applicables** (sauf U6 = outil dédié, U4/U5 = rappels). Chaque carte affiche des **questions guidées** (faits Oui/Non/S.O. + précisions) depuis `catalogue.PARCOURS_A_QUESTIONS` (`GET /catalogue/parcours-a/questions`), + téléversement de preuves. Le **sélecteur de verdict a été retiré**.
+- Sauvegarde via `PATCH /dossiers/{id}/parcours-a/element/{code}` avec `donnees` (+ note « Précisions / mesures prévues »). Le backend **auto-marque « à valider »** dès qu'une donnée est saisie (jamais « Conforme » auto). Badges neutres : « À documenter » / « Documenté — à valider ».
+- Vérifié : testing agent frontend **100 %** (iteration_24) — questions guidées U1/U2/U9/U10/U11/U14/U15/U16, faits persistés, statut « Documenté — à valider », preuves, U6 inchangé, U4/U5 rappels, non-régression (Profil/Gantt/Kanban). Note : un ancien badge « Conforme » (données de test antérieures) subsiste sur un dossier de test — non régressif.
+
 ## À VENIR (convenu avec l'utilisateur)
 - **Vue d'ensemble PRO multi-dossiers** (Gantt portefeuille vs Kanban) : à rediscuter avec l'utilisateur — lui présenter une maquette Gantt vs Kanban pour suivre l'ensemble des dossiers clients d'un consultant PRO.
 - **Rappels échéances (mesures + Gantt)** : proposés à l'utilisateur (alertes in-app + courriel hebdo) — en attente de « oui ».

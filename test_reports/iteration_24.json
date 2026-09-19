@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only testing of Parcours A 'Liste des obligations' refactor: guided questions (faits + précisions) replacing verdict dropdown across non-U6 obligations. Login OK with provided Régime A credentials, navigated to Parcours A → Liste des obligations, verified guided questions render, save persists as 'Documenté — à valider', preuve upload/delete OK, U6 unchanged, U4/U5 rappels unchanged. Non-regression on Profil, Gantt Parcours A and Kanban Parcours B all pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Parcours A · Liste des obligations", "issues": ["U1 card still displays legacy 'Conforme' badge from a pre-refactor save (parcours_a_traites=4/17). Since verdict selector no longer exists, a user cannot easily 'downgrade' the badge back to 'Documenté — à valider' without a data migration. Not caused by the current change (auto-marking works correctly for new saves), but worth mentioning: consider a one-time backend migration to reset legacy statut='conforme' to 'a_valider' for consistency with the new philosophy 'l'outil documente, il ne juge pas'."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["(Optional) One-time migration to convert legacy 'conforme' statuses on non-U6 obligations to 'a_valider' so that pre-existing dossiers reflect the new documentation-only philosophy."],
+  "critical_code_review_comments": [
+    "ParcoursAElements.jsx line 209 header still reads 'Définissez le statut de chaque obligation…' but there is no longer a status selector — copy should be updated to 'Répondez aux questions et joignez vos preuves.' to match the new UX.",
+    "STATUTS array in ParcoursAElements.jsx still contains 'conforme' / 'non_conforme' labels — kept only for backward display of legacy data. OK, but tag with a comment."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100% (7/7 scenarios pass)"},
+  "test_credentials": "ganttpme_1789830672@test.ca / Test2026!",
+  "seed_data_creation": "None. Modified U10 on existing dossier 7a58a8ec-… (donnees produits_fr=oui, menus_fr=oui; note='TEST: précisions et mesures prévues.')",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Régime A dossier 7a58a8ec-bd3e-4c06-b67c-95872374c068. Profile: syndicat=non, produits=oui → applicable obligations show U1,U2,U6,U9,U10,U11,U12,U13,U14,U15,U16 (and U3/U7/U8/U17/U18 also appear as card in ordered list per profile; U4/U5 shown as info-only rappels). U10 has been saved with statut=a_valider. U1 shows legacy 'Conforme' badge from earlier iteration (not a regression).",
+  "verifications_passed": [
+    "OLD parcoursa-statut-* verdict selectors count = 0",
+    "parcoursa-open-u6 present for U6 card, no guided questions on U6",
+    "Guided questions present for U1(5), U2(5), U9(5), U10(8), U11(4), U14(4), U15(5), U16(4)",
+    "U10: fait 'oui' click activates (bg-[#0F2B48]) and persists after reload for produits_fr and menus_fr",
+    "parcoursa-note-U10 editable, persists after reload",
+    "parcoursa-save-U10 → toast 'Obligation documentée' + status badge = 'Documenté — à valider' (never auto-Conforme)",
+    "parcoursa-upload-U10 uploads a preuve (piece row appears) and trash button removes it",
+    "U4 and U5 rendered as info-only cards (no save button, no questions)",
+    "Non-regression: Profil/démarrage tab loads, Diagramme de Gantt renders 17 elements, Parcours B Kanban loads with existing tickets"
+  ]
+}

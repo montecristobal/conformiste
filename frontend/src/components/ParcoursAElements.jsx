@@ -206,7 +206,7 @@ export const ParcoursAElements = ({ dossier, onUpdated, onGoAnalyse }) => {
   return (
     <div className="space-y-4" data-testid="parcoursa-elements">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-sm text-slate-500">{dossier.parcours_a_traites}/{dossier.parcours_a_total} éléments applicables traités. Définissez le statut de chaque obligation et joignez vos preuves.</p>
+        <p className="text-sm text-slate-500">{dossier.parcours_a_traites}/{dossier.parcours_a_total} éléments applicables documentés. Répondez aux questions et joignez vos preuves — l'outil documente les faits, sans rendre de verdict.</p>
         <Button size="sm" variant="outline" onClick={onGoAnalyse} data-testid="parcoursa-go-analyse"><ScanSearch size={15} className="mr-1" /> Analyser des documents</Button>
       </div>
 
