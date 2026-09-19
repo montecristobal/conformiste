@@ -133,6 +133,14 @@ class ParcoursAProfilIn(BaseModel):
     nb_francais: Optional[int] = None
 
 
+class U6In(BaseModel):
+    postes: List[Dict[str, Any]] = []
+
+
+class U6MotifIn(BaseModel):
+    poste: Dict[str, Any] = {}
+
+
 class Module1In(BaseModel):
     module1_data: Dict[str, Any] = {}
     module1_meta: Dict[str, Any] = {}
@@ -1133,6 +1141,74 @@ async def save_parcours_a_profil(dossier_id: str, body: ParcoursAProfilIn,
                 f"jouets={profil['vend_jouets']}, immo={profil['immo_residentiel']}, {nbf}/{nb} en français)")
     updated = await db.dossiers.find_one({"id": dossier_id})
     return enrich_dossier(updated)
+
+
+@api.get("/catalogue/u6/cnp-library")
+async def get_cnp_library(user: dict = Depends(get_current_user)):
+    from catalogue import CNP_TASK_LIBRARY
+    return CNP_TASK_LIBRARY
+
+
+@api.get("/dossiers/{dossier_id}/parcours-a/u6")
+async def get_u6(dossier_id: str, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    return d.get("parcours_a_u6") or {"postes": []}
+
+
+@api.put("/dossiers/{dossier_id}/parcours-a/u6")
+async def save_u6(dossier_id: str, body: U6In, user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    if (d.get("regime") or "B") != "A":
+        raise HTTPException(status_code=400, detail="Réservé au régime des obligations universelles.")
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {"postes": body.postes, "updated_at": now}
+    upd = {"parcours_a_u6": payload, "updated_at": now}
+    # L'outil DOCUMENTE, il ne juge pas : on marque l'élément U6 « à valider » (jamais conforme auto).
+    if body.postes:
+        els = d.get("parcours_a_elements") or {}
+        cur = els.get("U6", {})
+        if cur.get("statut") in (None, "non_evalue"):
+            cur["statut"] = "a_valider"
+            cur["updated_at"] = now
+            els["U6"] = cur
+            upd["parcours_a_elements"] = els
+    await db.dossiers.update_one({"id": dossier_id}, {"$set": upd})
+    await audit(dossier_id, user, f"Outil U6 enregistré ({len(body.postes)} poste(s))")
+    updated = await db.dossiers.find_one({"id": dossier_id})
+    return enrich_dossier(updated)
+
+
+@api.post("/dossiers/{dossier_id}/parcours-a/u6/motif-draft")
+async def u6_motif_draft(dossier_id: str, body: U6MotifIn,
+                         user: dict = Depends(get_current_user)):
+    await get_owned_dossier(dossier_id, user)
+    from u6_ai import draft_motif
+    try:
+        draft = await draft_motif(body.poste)
+    except Exception as e:
+        logger.warning(f"U6 motif draft failed: {e}")
+        raise HTTPException(status_code=502, detail="Rédaction IA indisponible pour le moment.")
+    await audit(dossier_id, user, "Rédaction IA du motif d'offre (U6)")
+    return {"draft": draft}
+
+
+@api.get("/dossiers/{dossier_id}/parcours-a/u6/pdf")
+async def u6_pdf(dossier_id: str, poste_id: str = Query(...),
+                 user: dict = Depends(get_current_user)):
+    d = await get_owned_dossier(dossier_id, user)
+    postes = ((d.get("parcours_a_u6") or {}).get("postes")) or []
+    poste = next((p for p in postes if p.get("id") == poste_id), None)
+    if not poste:
+        raise HTTPException(status_code=404, detail="Poste introuvable")
+    from pdf_export import build_u6_pdf
+    buf = build_u6_pdf(d, poste)
+    await audit(dossier_id, user, f"Export PDF — dossier de démarche U6 ({poste.get('titre') or poste_id})")
+    fn = f"demarche_u6_{(poste.get('titre') or 'poste')}_{d.get('neq') or dossier_id}.pdf".replace(" ", "_")
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f'attachment; filename="{fn}"'})
+
+
+@api.get("/dossiers/{dossier_id}/export/regime-a")
 async def export_regime_a(dossier_id: str, user: dict = Depends(get_current_user)):
     d = await get_owned_dossier(dossier_id, user)
     await audit(dossier_id, user, "Export PDF — Rapport de conformité (obligations universelles)")

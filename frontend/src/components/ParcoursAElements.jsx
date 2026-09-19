@@ -6,8 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { RegimeAReq } from "@/components/RegimeAReq";
+import { U6Tool } from "@/components/U6Tool";
 import {
-  ChevronDown, ChevronRight, Save, Paperclip, Trash2, Download, Loader2, ScanSearch, Info,
+  ChevronDown, ChevronRight, Save, Paperclip, Trash2, Download, Loader2, ScanSearch, Info, Languages,
 } from "lucide-react";
 
 const STATUTS = [
@@ -43,7 +44,7 @@ function InfoOnlyCard({ theme, index }) {
   );
 }
 
-function ElementCard({ dossierId, theme, index, saved, findings, onUpdated }) {
+function ElementCard({ dossierId, theme, index, saved, findings, onUpdated, onOpenU6 }) {
   const [statut, setStatut] = useState(saved?.statut || "non_evalue");
   const [note, setNote] = useState(saved?.note || "");
   const [open, setOpen] = useState(false);
@@ -92,6 +93,14 @@ function ElementCard({ dossierId, theme, index, saved, findings, onUpdated }) {
           <p className="text-[11px] font-semibold text-amber-700">Détecté par l'analyse :</p>
           {findings.map((f) => <p key={f.finding_id} className="text-xs text-slate-700">• {f.constat}</p>)}
         </div>
+      )}
+
+      {theme.id === "U6" && (
+        <button onClick={onOpenU6} data-testid="parcoursa-open-u6"
+          className="w-full flex items-center justify-between gap-2 rounded-lg border-2 border-indigo-200 hover:border-indigo-400 bg-indigo-50/60 px-3 py-2.5 transition-all">
+          <span className="flex items-center gap-2 text-sm font-semibold text-[#0F2B48]"><Languages size={16} className="text-indigo-600" /> Ouvrir l'outil d'évaluation (par poste, art. 46/46.1)</span>
+          <ChevronRight size={16} className="text-indigo-500" />
+        </button>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
@@ -143,6 +152,7 @@ export const ParcoursAElements = ({ dossier, onUpdated, onGoAnalyse }) => {
   const [themes, setThemes] = useState([]);
   const [plan, setPlan] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [u6Open, setU6Open] = useState(false);
   const els = dossier.parcours_a_elements || {};
   const profilDone = !!dossier.parcours_a_profil?.completed;
   const applicable = new Set(dossier.parcours_a_applicable || []);
@@ -162,6 +172,8 @@ export const ParcoursAElements = ({ dossier, onUpdated, onGoAnalyse }) => {
 
   if (loading) return <div className="flex items-center gap-2 text-slate-400 p-8"><Loader2 className="animate-spin" size={18} /> Chargement…</div>;
 
+  if (u6Open) return <U6Tool dossier={dossier} onBack={() => setU6Open(false)} onUpdated={onUpdated} />;
+
   return (
     <div className="space-y-4" data-testid="parcoursa-elements">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -176,7 +188,7 @@ export const ParcoursAElements = ({ dossier, onUpdated, onGoAnalyse }) => {
       )}
 
       {evalues.map((t, i) => (
-        <ElementCard key={t.id} dossierId={dossier.id} theme={t} index={i + 1} saved={els[t.id]} findings={byTheme[t.id]} onUpdated={onUpdated} />
+        <ElementCard key={t.id} dossierId={dossier.id} theme={t} index={i + 1} saved={els[t.id]} findings={byTheme[t.id]} onUpdated={onUpdated} onOpenU6={() => setU6Open(true)} />
       ))}
 
       {rappels.length > 0 && (

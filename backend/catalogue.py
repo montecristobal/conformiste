@@ -499,3 +499,37 @@ PIPELINE_STAGES = [
     {"key": "maintien", "ordre": 8, "label": "Maintien (rapports triennaux)",
      "description": "Rapports triennaux post-certification."},
 ]
+
+
+# ==================================================================
+# Bibliothèque de descriptions de tâches-types (outil U6, art. 46/46.1).
+# Inspirée des « tâches principales » des fiches IMT/CNP (Emploi-Québec),
+# priorité aux métiers fréquents en commerce de détail et service à la clientèle.
+# L'entreprise sélectionne la fiche la plus proche puis la personnalise.
+# ==================================================================
+CNP_TASK_LIBRARY = [
+    {"code_cnp": "65100", "titre": "Caissier / caissière", "taches": [
+        "Accueillir la clientèle et répondre à ses questions",
+        "Enregistrer les achats et percevoir les paiements (comptant, carte, mobile)",
+        "Émettre les reçus, effectuer les remboursements et les bons de crédit",
+        "Compter la caisse au début et à la fin du quart de travail",
+        "Répondre aux demandes de renseignements sur les prix et la disponibilité",
+        "Traiter les retours et les échanges de marchandise",
+    ]},
+    {"code_cnp": "64100", "titre": "Commis aux ventes — commerce de détail", "taches": [
+        "Conseiller la clientèle sur le choix des produits",
+        "Présenter la marchandise et en expliquer les caractéristiques",
+        "Effectuer les transactions de vente et préparer les factures",
+        "Réapprovisionner les étalages et étiqueter les produits",
+        "Recevoir et traiter les commandes des clients",
+        "Traiter les plaintes et les demandes de service après-vente",
+    ]},
+    {"code_cnp": "64409", "titre": "Préposé / préposée au service à la clientèle", "taches": [
+        "Répondre aux demandes de renseignements par téléphone, courriel et en personne",
+        "Traiter les commandes, les réclamations et les demandes de service",
+        "Fournir de l'information sur les produits et les services",
+        "Consigner les interactions et acheminer les dossiers aux services concernés",
+        "Assurer le suivi auprès de la clientèle",
+        "Résoudre les problèmes courants ou les transférer à un superviseur",
+    ]},
+]

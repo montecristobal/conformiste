@@ -671,3 +671,111 @@ def gantt_pdf_to_png(pdf_buf):
     out = BytesIO(pix.tobytes("png"))
     out.seek(0)
     return out
+
+
+
+_U6_FREQ = {"quotidienne": "Quotidienne", "hebdomadaire": "Hebdomadaire", "occasionnelle": "Occasionnelle"}
+_U6_INTERLOC = {"clientele": "Clientèle externe", "fournisseurs": "Fournisseurs",
+                "collegues_hors_qc": "Collègues hors Québec", "autre": "Autre"}
+
+
+def build_u6_pdf(dossier, poste):
+    """Dossier de démarche documentée (art. 46/46.1) — par poste. AUCUN verdict de conformité."""
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, topMargin=1.6 * cm,
+                            bottomMargin=1.6 * cm, leftMargin=2 * cm, rightMargin=2 * cm)
+    ss = _styles()
+    story = []
+    _header(story, ss, "Démarche documentée — exigence d'une autre langue (art. 46 et 46.1)",
+            f"Entreprise : <b>{_esc(dossier.get('nom_entreprise', '—'))}</b> — NEQ : {_esc(dossier.get('neq', '—'))}")
+    story.append(Paragraph(
+        "Ce document consigne les faits et les preuves relatifs à l'exigence de connaissance d'une autre "
+        "langue pour le poste ci-dessous. Il ne constitue ni une attestation de conformité, ni un avis "
+        "juridique : la conclusion relève d'un jugement humain.", ss["Label"]))
+    story.append(Spacer(1, 6))
+
+    dt = poste.get("description_tache", {}) or {}
+    s1 = poste.get("section1", {}) or {}
+    s2 = poste.get("section2", {}) or {}
+    s3 = poste.get("section3", {}) or {}
+    s4 = poste.get("section4", {}) or {}
+
+    story.append(Paragraph("Section 0 — Identification du poste", ss["H2"]))
+    story.append(_kv_table([
+        ("Titre du poste / catégorie", poste.get("titre")),
+        ("Postes visés par l'exigence / total", f"{poste.get('nb_postes_vises', '—')} / {poste.get('nb_postes_total', '—')}"),
+        ("Langue(s) exigée(s) en plus du français", poste.get("langues_exigees")),
+    ]))
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph("Section 0bis — Description de tâches", ss["H2"]))
+    tasks = dt.get("tasks") or []
+    if not tasks:
+        story.append(Paragraph(
+            "AVERTISSEMENT : sans description de tâches documentée pour ce poste, l'évaluation des besoins "
+            "linguistiques risque d'être remise en question par l'Office.", ss["Legal"]))
+    else:
+        src = {"upload": "document téléversé", "library": f"fiche-type CNP {dt.get('cnp_ref') or ''}",
+               "custom": "saisie personnalisée"}.get(dt.get("source"), "—")
+        story.append(Paragraph(f"Source : {_esc(src)}", ss["Label"]))
+        rows = [[Paragraph("Tâche", ss["Label"]), Paragraph("Autre langue requise", ss["Label"])]]
+        for t in tasks:
+            rows.append([Paragraph(_esc(t.get("texte", "")), ss["Body"]),
+                         Paragraph("Oui" if t.get("requires_other_lang") else "Non", ss["Body"])])
+        tt = Table(rows, colWidths=[13 * cm, 3.5 * cm])
+        tt.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"),
+                                ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#E2E8F0")),
+                                ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4)]))
+        story.append(tt)
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph("Section 1 — Besoins linguistiques réels (art. 46.1, 1°)", ss["H2"]))
+    interloc = ", ".join(_U6_INTERLOC.get(x, x) for x in (s1.get("interlocuteurs") or [])) or "—"
+    story.append(_kv_table([
+        ("Interlocuteurs en langue autre que le français", interloc),
+        ("Fréquence", _U6_FREQ.get(s1.get("frequence"), s1.get("frequence"))),
+        ("% d'interlocuteurs non francophones (fait documenté, non un seuil)",
+         (f"{s1.get('pct_clientele_non_franco')} %" if s1.get("pct_clientele_non_franco") not in (None, "") else "—")),
+        ("Nature des tâches nécessitant cette connaissance", s1.get("nature_taches")),
+    ]))
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph("Section 2 — Insuffisance des connaissances existantes (art. 46.1, 2°)", ss["H2"]))
+    verif = {"formelle": "Vérification formelle (test/entretien)", "informelle": "Vérification informelle (supposition)"}.get(
+        s2.get("verification_type"), "—")
+    story.append(_kv_table([
+        ("Personnel actuel pouvant occuper ce poste", s2.get("inventaire")),
+        ("Type de vérification", verif),
+        ("Détails", s2.get("details")),
+    ]))
+    if s2.get("verification_type") != "formelle":
+        story.append(Paragraph(
+            "AVERTISSEMENT : l'art. 46.1 exige de s'être ASSURÉ, et non d'avoir présumé, que les "
+            "connaissances existantes sont insuffisantes.", ss["Legal"]))
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph("Section 3 — Réduction du nombre de postes visés (art. 46.1, 3°)", ss["H2"]))
+    story.append(_kv_table([("Moyens envisagés ou mis en place", s3.get("moyens_texte"))]))
+    story.append(Paragraph(
+        "GARDE-FOU (art. 40.1) : réduire le nombre de postes en concentrant les tâches nécessitant une autre "
+        "langue sur une ou des personnes bilingues déjà en poste peut, en soi, restreindre leur droit de "
+        "travailler en français. La Charte doit être interprétée de manière à ne jamais supprimer ou "
+        "restreindre ce droit.", ss["Legal"]))
+    story.append(Paragraph(
+        ("Confirmation de l'entreprise : la réduction proposée ne repose PAS sur une telle concentration."
+         if s3.get("confirmation_40_1") else
+         "ATTENTION : l'entreprise n'a PAS confirmé que la réduction proposée ne concentre pas les tâches "
+         "en langue autre sur une personne bilingue existante au détriment de son droit de travailler en français."),
+        ss["Label"]))
+    story.append(Spacer(1, 4))
+
+    story.append(Paragraph("Section 4 — Motif à indiquer dans l'offre d'emploi (art. 46, al. 2)", ss["H2"]))
+    story.append(Paragraph(_esc(s4.get("motif_offre") or "— (à compléter)"), ss["Body"]))
+
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(
+        "Document produit par CONFORMISTE comme dossier de démarche documentée. Ne constitue pas une "
+        "attestation de conformité ni un avis juridique.", ss["Label"]))
+    doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
+    buf.seek(0)
+    return buf
